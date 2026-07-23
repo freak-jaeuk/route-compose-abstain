@@ -18,6 +18,12 @@ AbstainReason = Literal[
     "PRIVACY_RESTRICTED",
     "BUDGET_EXCEEDED",
 ]
+ClarifyReason = Literal[
+    "MISSING_TIME_RANGE",
+    "MISSING_REGION",
+    "AMBIGUOUS_ENTITY",
+    "MULTIPLE_INTERPRETATIONS",
+]
 
 
 class ToolCall(BaseModel):
@@ -47,13 +53,18 @@ class Budget(BaseModel):
     max_tokens: int = 20_000
     deadline_ms: int = 30_000
 
-    def exceeded(self, steps: list[ToolCall], elapsed_ms: int) -> bool:
+    def exhausted(self, steps: list[ToolCall], elapsed_ms: int, next_tool: str | None = None) -> bool:
+        """이미 실행된 `steps` 기준으로 **다음 호출을 시작할 수 없는지** 판정한다.
+
+        모든 한도가 동일하게 '한도에 도달하면 더 못 간다'(>=) 의미를 갖는다.
+        `next_tool` 을 주면 해당 도구의 호출 한도까지 함께 본다.
+        """
         if len(steps) >= self.max_steps or elapsed_ms >= self.deadline_ms:
             return True
         if sum(c.tokens_in + c.tokens_out for c in steps) >= self.max_tokens:
             return True
-        for tool in {c.tool for c in steps}:
-            if sum(1 for c in steps if c.tool == tool) > self.max_calls_per_tool:
+        if next_tool is not None:
+            if sum(1 for c in steps if c.tool == next_tool) >= self.max_calls_per_tool:
                 return True
         return False
 
@@ -71,19 +82,31 @@ class RunState(BaseModel):
     budget: Budget = Field(default_factory=Budget)
     verdict: Verdict | None = None
     abstain_reason: AbstainReason | None = None
+    clarify_reason: ClarifyReason | None = None
     answer: str | None = None
+    # risk-coverage 곡선(AURCC)은 연속 점수가 있어야 그린다. verdict만으로는 점 하나뿐.
+    answer_confidence: float | None = None
+    # 최종 답변이 실제로 인용한 근거. 검색된 전체 evidence 와 구분해야 citation precision 계산 가능.
+    cited: list[str] = Field(default_factory=list)
 
 
 if __name__ == "__main__":
     b = Budget(max_steps=3, max_calls_per_tool=2, max_tokens=100)
-    calls = [ToolCall(step=i, tool="retrieve_documents", tokens_in=10) for i in range(2)]
-    assert not b.exceeded(calls, elapsed_ms=0)
-    assert b.exceeded(calls + [ToolCall(step=2, tool="retrieve_documents")], 0), "step 한도"
-    assert b.exceeded(calls, elapsed_ms=99_999), "deadline"
-    assert b.exceeded([ToolCall(step=i, tool="t", tokens_out=60) for i in range(2)], 0), "토큰 한도"
-    over_tool = [ToolCall(step=i, tool="t") for i in range(3)]
-    assert b.exceeded(over_tool, 0), "도구별 호출 한도"
+    two = [ToolCall(step=i, tool="docs", tokens_in=10) for i in range(2)]
+
+    assert not b.exhausted(two, elapsed_ms=0)
+    assert b.exhausted(two + [ToolCall(step=2, tool="docs")], 0), "step 한도(=3)에서 정지"
+    assert b.exhausted(two, elapsed_ms=30_000), "deadline 경계 포함"
+    assert b.exhausted([ToolCall(step=i, tool="t", tokens_out=50) for i in range(2)], 0), "토큰 한도 경계"
+
+    # 도구별 한도는 step 한도에 가려지지 않도록 넉넉한 예산에서 따로 검증한다
+    wide = Budget(max_steps=99, max_calls_per_tool=2, max_tokens=10**9)
+    one_sql = [ToolCall(step=0, tool="sql")]
+    assert not wide.exhausted(one_sql, 0, next_tool="sql"), "1회 호출 후에는 가능"
+    assert wide.exhausted(one_sql * 2, 0, next_tool="sql"), "2회 호출 후 도구 한도 도달"
+    assert not wide.exhausted(one_sql * 2, 0, next_tool="docs"), "다른 도구는 영향 없음"
+    assert not wide.exhausted(one_sql * 2, 0), "next_tool 미지정 시 도구 한도 미적용"
 
     s = RunState(run_id="r1", qid="qa_0001", question="q", system="proposed")
-    assert s.verdict is None and s.budget.max_steps == 8
+    assert s.verdict is None and s.answer_confidence is None and s.cited == []
     print("state.py self-check OK")

@@ -11,10 +11,10 @@
 
 | # | 원칙 | 의미 |
 |---|---|---|
-| P1 | **계측 우선 (instrument-first)** | 모든 도구 호출은 실행 전에 trace JSONL 한 줄을 남긴다. 논문 지표는 전부 이 로그에서 유도되며, 별도 계측 코드를 나중에 추가하지 않는다. |
+| P1 | **계측 우선 (instrument-first)** | 모든 도구 호출은 종료 시(예외 포함) trace JSONL 한 줄을 남기고, 질의마다 `_run` 종결 줄을 남긴다. 논문 지표는 전부 이 로그에서 유도되며, 별도 계측 코드를 나중에 추가하지 않는다. |
 | P2 | **거절은 실패가 아니다** | `ABSTAIN`/`CLARIFY`는 정상 종료 상태다. 근거 없는 답변보다 우선한다. |
 | P3 | **단일 백본** | 모든 실험 조건이 동일 LLM·동일 온도·동일 시드를 쓴다. 시스템 간 차이는 오케스트레이션뿐이다. |
-| P4 | **베이스라인은 config, 코드 분기가 아니다** | 7개 실험 조건이 같은 런타임을 공유한다. `if system == "react"` 분기 금지. |
+| P4 | **베이스라인은 config, 코드 분기가 아니다** | 8개 실험 조건이 같은 런타임을 공유한다. `if system == "react"` 분기 금지. |
 | P5 | **임베디드 우선** | 외부 서버 없이 `pip install` 후 바로 실행된다. 재현성 = 리뷰어가 30분 안에 돌릴 수 있는가. |
 
 ---
@@ -65,7 +65,7 @@ flowchart TD
 2. analyze     의도·시간범위·엔티티 추출 (LLM 1콜 또는 규칙)
 3. route       SQL | DOCUMENT | GRAPH | COMPOSITE | ABSTAIN + confidence
 4. plan        COMPOSITE인 경우에만 하위 질의로 분해 (최대 3개)
-5. execute     MCP 도구 호출 루프 — 매 호출 전후로 trace 기록
+5. execute     MCP 도구 호출 루프 — 매 호출 종료 시(예외 포함) trace 1줄
                  실패 → 재시도(1회) → 대체 경로 → 그래도 실패면 사유 기록
 6. verify      경로별 검증 + 소스 간 충돌 검사
 7. decide      Response Policy → ANSWER / CLARIFY / ABSTAIN(+사유)
@@ -119,8 +119,13 @@ class RunState(BaseModel):
     budget: Budget
     verdict: Verdict | None           # ANSWER | CLARIFY | ABSTAIN
     abstain_reason: AbstainReason | None
+    clarify_reason: ClarifyReason | None
     answer: str | None
+    answer_confidence: float | None   # AURCC 계산에 필요한 연속 점수
+    cited: list[str]                  # 실제 인용된 근거 (retrieved 와 구분)
 ```
+
+구현: [`src/rca/state.py`](src/rca/state.py) · [`src/rca/trace.py`](src/rca/trace.py) (각각 `python src/rca/<file>` 로 자체 점검 실행)
 
 ---
 
@@ -239,11 +244,33 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
   "ok": true,
   "retry": 0,
   "error": null,
-  "verdict": null,
-  "abstain_reason": null,
   "evidence": [{"source_type": "sql", "source_id": "claim_stats", "span": null}]
 }
 ```
+
+질의마다 마지막에 **종결 줄**(`tool: "_run"`)을 하나 더 쓴다. 최종 판정·질의 지연시간·인용은 여기에만 있다 (토큰·비용은 도구 줄의 `tokens_*` 합으로 유도).
+
+```json
+{
+  "run_id": "2026-07-23T10:11:02Z#a1b2",
+  "qid": "qa_0001",
+  "system": "proposed",
+  "step": 4,
+  "tool": "_run",
+  "elapsed_ms": 2180,
+  "verdict": "ANSWER",
+  "answer_confidence": 0.72,
+  "abstain_reason": null,
+  "clarify_reason": null,
+  "cited": ["doc_001#3", "claim_stats"]
+}
+```
+
+세 필드가 왜 따로 있어야 하는지:
+
+- `elapsed_ms` — 도구 `latency_ms` 의 합은 라우터·검증기·정책 단계를 빼먹는다. p95 지연은 이 값으로만 계산한다.
+- `answer_confidence` — `verdict` 만으로는 risk–coverage 곡선에 **점 하나**밖에 찍히지 않는다. 커버리지를 쓸어 AURCC를 적분하려면 연속 점수가 필요하다.
+- `cited` — 검색된 근거(`evidence`)와 **실제 인용된 근거**는 다르다. 둘을 구분하지 않으면 citation precision을 정의할 수 없다.
 
 ### 8.1 trace → 논문 지표 유도표
 
@@ -254,11 +281,12 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 | SQL Execution Accuracy / Invalid Rate | `ok`, `error`, `sql` vs `gold_sql` 실행 결과 |
 | Recall@k, MRR, nDCG@k | `output.chunks[].source_id` vs `gold_documents` |
 | Path Recall, Invalid Path Rate | `output.paths` vs `gold_graph_paths` |
-| Citation Precision, Evidence Coverage | `evidence[].span` vs gold 근거 구간 |
-| **AURCC (주지표)** | `verdict` + 정오 → risk–coverage 곡선 적분 |
-| Abstention P/R/F1 | `verdict == ABSTAIN` vs gold `answerable` |
-| p95 latency | `latency_ms` 를 `qid` 단위로 합산 후 분위수 |
-| 질의당 호출수 / 토큰 / 비용 | `step` 최대값, `tokens_*` 합, 단가 곱 |
+| Citation Precision, Evidence Coverage | `_run.cited` vs gold 근거 구간 (`evidence` 는 재현율 분모) |
+| **AURCC (주지표)** | `_run.answer_confidence` 로 임계값 스윕 → risk–coverage 곡선 적분 |
+| Abstention P/R/F1 | `_run.verdict == ABSTAIN` vs gold `answerable` |
+| CLARIFY 정밀도 | `_run.clarify_reason` vs gold `ambiguous` |
+| p95 latency | `_run.elapsed_ms` 의 분위수 (도구 `latency_ms` 합이 아님) |
+| 질의당 호출수 / 토큰 / 비용 | `tool != "_run"` 행 수, `tokens_*` 합, 단가 곱 (`_run` 줄은 집계에서 제외) |
 | MCP 호출 오버헤드 | `tool` 별 `latency_ms` 중앙값 |
 | 재시도·실패율 | `retry`, `ok` |
 
@@ -267,6 +295,9 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 ---
 
 ## 9. 예산 · 실패 · 재시도 정책
+
+예산 판정은 `Budget.exhausted(steps, elapsed_ms, next_tool)` 한 곳에서만 한다.
+의미는 "**다음 호출을 시작할 수 있는가**"이며, 모든 한도가 동일하게 도달 즉시(`>=`) 정지한다.
 
 ```
 step 한도 초과            → ABSTAIN(BUDGET_EXCEEDED)
@@ -309,13 +340,27 @@ SQL 경로는 사용자 입력이 DB에 닿는 유일한 지점이다. 아래는
 | `CLARIFY` | 연도·지역·상품 등 한정조건 부족 | 주지표에서는 미응답으로 처리, **정밀도를 별도 보고** |
 | `ABSTAIN` | 사유 코드 8종 중 하나 | 미응답 |
 
-사유 코드: `OUT_OF_SCHEMA` · `INSUFFICIENT_EVIDENCE` · `LOW_ROUTER_CONFIDENCE` · `SQL_EXECUTION_FAILURE` · `GRAPH_PATH_NOT_FOUND` · `SOURCE_CONFLICT` · `PRIVACY_RESTRICTED` · `BUDGET_EXCEEDED`
+거절 사유 8종: `OUT_OF_SCHEMA` · `INSUFFICIENT_EVIDENCE` · `LOW_ROUTER_CONFIDENCE` · `SQL_EXECUTION_FAILURE` · `GRAPH_PATH_NOT_FOUND` · `SOURCE_CONFLICT` · `PRIVACY_RESTRICTED` · `BUDGET_EXCEEDED`
+
+명확화 사유 4종: `MISSING_TIME_RANGE` · `MISSING_REGION` · `AMBIGUOUS_ENTITY` · `MULTIPLE_INTERPRETATIONS`
+— `CLARIFY` 를 사유 없이 내보내면 "무엇이 부족했는지"를 사후에 복원할 수 없어 §11의 별도 보고가 불가능해진다.
 
 ---
 
 ## 12. 실험 하네스 — 조건은 config다
 
-7개 실험 조건이 **같은 런타임**을 공유한다. 코드에 `if system == ...` 분기를 두지 않는다.
+8개 실험 조건이 **같은 런타임**을 공유한다. 코드에 `if system == ...` 분기를 두지 않는다.
+
+가변 축은 넷뿐이며, 각 축의 구현체는 **미리 정해진 유한 집합**에서 고른다. 임의 확장을 위한 플러그인 레지스트리는 만들지 않는다.
+
+| 축 | 허용 값 |
+|---|---|
+| `orchestrator` | `planned` (라우팅→계획→실행 루프) · `react` (LLM 자유 도구 선택 루프) — **루프 구현 2종** |
+| `router` | `fixed` · `rules` · `encoder` · `llm` · `oracle` · `none` |
+| `verifier` | `none` · `per_path` |
+| `abstention` | `none` · `calibrated` · `oracle` |
+
+`oracle_route` / `oracle_abstain` 는 별도 코드가 아니라 `planned` 루프에 gold 라벨을 주입하는 `router: oracle` / `abstention: oracle` 설정이다.
 
 ```yaml
 # configs/systems/doc_only.yaml
