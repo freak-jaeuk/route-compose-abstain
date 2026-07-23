@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 from rca.state import Budget, RunState, ToolCall
@@ -87,13 +88,60 @@ def parse_spec(question: str) -> dict:
 
 
 # ---------------------------------------------------------------- 오케스트레이션
+LEGS = {
+    "SQL": ("query_structured_data", parse_spec, tool_query_structured_data, (320, 60)),
+    "DOCUMENT": ("retrieve_documents", lambda q: {"query": q, "k": 5},
+                 tool_retrieve_documents, (480, 90)),
+    "GRAPH": ("query_knowledge_graph", lambda q: {"query": q, "max_hops": 2},
+              tool_query_knowledge_graph, (260, 55)),
+}
+
+
+def call_tool(tr: Tracer, st: RunState, tool: str, payload: dict, fn, tokens: tuple[int, int]):
+    """도구 1회 호출. trace 기록과 `RunState.steps` 반영을 한 곳에서 한다.
+
+    steps 를 채우지 않으면 `Budget.exhausted` 가 항상 빈 목록을 보게 되어
+    예산 한도가 영원히 발동하지 않는다 (스모크가 거짓 통과하는 대표 경로).
+    """
+    call = ToolCall(step=len(st.steps) + 1, tool=tool, input=payload)
+    try:
+        with tr.step(tool, payload, route_pred=st.route_pred, route_conf=st.route_conf) as rec:
+            rec["output"] = fn(payload)
+            rec["tokens_in"], rec["tokens_out"] = tokens
+            call.output, call.tokens_in, call.tokens_out = rec["output"], *tokens
+        return call.output
+    except LookupError:
+        call.ok = False
+        raise
+    finally:
+        st.steps.append(call)
+
+
+def collect_cited(leg: str, out: dict, abstention: bool) -> list[str]:
+    """도구는 성공했지만 근거가 비어 있는 경우를 검증 단계에서 걸러낸다."""
+    if leg == "SQL":
+        return [out["source_id"]]
+    if leg == "DOCUMENT":
+        if not out["chunks"] and abstention:
+            raise LookupError("INSUFFICIENT_EVIDENCE: no chunk above threshold")
+        return [c["source_id"] for c in out["chunks"][:2]]
+    if not out["paths"]:
+        raise LookupError("GRAPH_PATH_NOT_FOUND")
+    return out["paths"]
+
+
 def run_one(cfg: dict, gold: dict, tr: Tracer) -> dict:
     st = RunState(run_id=tr.run_fields["run_id"], qid=gold["qid"], question=gold["question"],
                   system=cfg["name"], budget=Budget())
+    t0 = time.perf_counter()
+    elapsed = lambda: int((time.perf_counter() - t0) * 1000)  # noqa: E731
 
     if PII.search(st.question) and cfg["abstention"]:
+        # 라우팅 이전 단계의 차단이지만 시스템이 내린 경로 판정은 ABSTAIN 이다.
+        # 비워두면 분석 쪽에서 결측을 ABSTAIN 으로 메워 라우터에 없는 공을 준다.
+        st.route_pred, st.route_conf = "ABSTAIN", 0.0
         st.verdict, st.abstain_reason, st.answer_confidence = "ABSTAIN", "PRIVACY_RESTRICTED", 0.02
-        return st.model_dump(include={"verdict", "abstain_reason", "answer_confidence", "route_pred", "cited"})
+        return _finish(st)
 
     if cfg["router"] == "fixed":
         st.route_pred, st.route_conf = cfg["route"], 1.0
@@ -112,35 +160,13 @@ def run_one(cfg: dict, gold: dict, tr: Tracer) -> dict:
     st.plan = plan
 
     for leg in plan:
-        if st.budget.exhausted(st.steps, 0, next_tool=leg):
+        tool, build, fn, tokens = LEGS[leg]
+        if st.budget.exhausted(st.steps, elapsed(), next_tool=tool):
             st.verdict, st.abstain_reason, st.answer_confidence = "ABSTAIN", "BUDGET_EXCEEDED", 0.10
             return _finish(st)
         try:
-            if leg == "SQL":
-                spec = parse_spec(st.question)
-                with tr.step("query_structured_data", spec, route_pred=st.route_pred,
-                             route_conf=st.route_conf) as rec:
-                    rec["output"] = tool_query_structured_data(spec)
-                    rec["tokens_in"], rec["tokens_out"] = 320, 60
-                    st.cited.append(rec["output"]["source_id"])
-            elif leg == "DOCUMENT":
-                with tr.step("retrieve_documents", {"query": st.question, "k": 5},
-                             route_pred=st.route_pred, route_conf=st.route_conf) as rec:
-                    out = tool_retrieve_documents({"query": st.question})
-                    rec["output"] = out
-                    rec["tokens_in"], rec["tokens_out"] = 480, 90
-                    if not out["chunks"] and cfg["abstention"]:
-                        raise LookupError("INSUFFICIENT_EVIDENCE: no chunk above threshold")
-                    st.cited += [c["source_id"] for c in out["chunks"][:2]]
-            else:
-                with tr.step("query_knowledge_graph", {"query": st.question, "max_hops": 2},
-                             route_pred=st.route_pred, route_conf=st.route_conf) as rec:
-                    out = tool_query_knowledge_graph({"query": st.question})
-                    rec["output"] = out
-                    rec["tokens_in"], rec["tokens_out"] = 260, 55
-                    if not out["paths"]:
-                        raise LookupError("GRAPH_PATH_NOT_FOUND")
-                    st.cited += out["paths"]
+            out = call_tool(tr, st, tool, build(st.question), fn, tokens)
+            st.cited += collect_cited(leg, out, cfg["abstention"])
         except LookupError as e:
             reason = str(e).split(":")[0]
             if cfg["abstention"]:

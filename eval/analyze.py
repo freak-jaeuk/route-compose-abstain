@@ -9,6 +9,7 @@ ARCHITECTURE_v1.md §8.1 유도표의 실행 가능한 형태다.
 from __future__ import annotations
 
 import json
+import math
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -21,16 +22,20 @@ ROUTES = ["SQL", "DOCUMENT", "GRAPH", "COMPOSITE", "ABSTAIN"]
 
 
 def macro_f1(pairs: list[tuple[str, str]]) -> float:
-    """pairs = [(gold, pred)]. 등장한 클래스만 평균낸다."""
+    """pairs = [(gold, pred)]. gold 또는 예측에 등장한 클래스를 모두 평균낸다.
+
+    gold 에 없는 클래스를 예측하면 false positive 만 쌓이는데, 그 클래스를 건너뛰면
+    오분류가 점수에 반영되지 않아 Macro-F1 이 부풀려진다.
+    """
     f1s = []
     for c in ROUTES:
         tp = sum(g == c and p == c for g, p in pairs)
         fp = sum(g != c and p == c for g, p in pairs)
         fn = sum(g == c and p != c for g, p in pairs)
-        if tp + fn == 0:
+        if tp + fn == 0 and fp == 0:
             continue
         prec = tp / (tp + fp) if tp + fp else 0.0
-        rec = tp / (tp + fn)
+        rec = tp / (tp + fn) if tp + fn else 0.0
         f1s.append(2 * prec * rec / (prec + rec) if prec + rec else 0.0)
     return sum(f1s) / len(f1s) if f1s else 0.0
 
@@ -40,24 +45,49 @@ def aurc(scored: list[tuple[float, bool]]) -> float:
 
     신뢰도 내림차순으로 커버리지를 넓히며 위험(오답률)을 적분한다. 낮을수록 좋다.
     verdict 만으로는 점 하나뿐이라 계산할 수 없다 — 연속 점수가 필요한 이유.
+
+    동점 처리: 임계값 스윕은 같은 점수를 구분하지 못하므로 동점 구간은 한꺼번에
+    편입하고 구간 끝의 위험을 공유한다. 로그 줄 순서가 바뀌어도 값이 변하지 않는다.
     """
     ranked = sorted(scored, key=lambda x: -x[0])
-    wrong = 0
-    risks = []
-    for k, (_, ok) in enumerate(ranked, 1):
-        wrong += not ok
-        risks.append(wrong / k)
+    risks: list[float] = []
+    wrong = i = 0
+    while i < len(ranked):
+        j = i
+        while j < len(ranked) and ranked[j][0] == ranked[i][0]:
+            wrong += not ranked[j][1]
+            j += 1
+        risks += [wrong / j] * (j - i)
+        i = j
     return sum(risks) / len(risks) if risks else 0.0
 
 
 def pctl(xs: list[float], q: float) -> float:
+    """nearest-rank 백분위 (ceil(q·n)번째). 지연 SLO 보고의 통상 규약."""
     if not xs:
         return 0.0
     s = sorted(xs)
-    return s[min(len(s) - 1, int(round(q * (len(s) - 1))))]
+    rank = max(1, math.ceil(q * len(s)))
+    return s[min(len(s), rank) - 1]
+
+
+def _selfcheck() -> None:
+    """지표 함수 점검. 표를 뽑을 때마다 함께 돈다 (마이크로초 단위)."""
+    assert macro_f1([("SQL", "SQL"), ("DOCUMENT", "DOCUMENT")]) == 1.0
+    # gold 에 없는 클래스를 예측하면 그 클래스의 F1 은 0 으로 평균에 들어간다
+    assert macro_f1([("SQL", "SQL"), ("SQL", "GRAPH")]) < 0.5
+    assert aurc([(0.9, True), (0.1, True)]) == 0.0            # 전부 정답 → 위험 0
+    assert aurc([(0.9, False), (0.1, False)]) == 1.0          # 전부 오답 → 위험 1
+    assert aurc([(0.9, True), (0.1, False)]) < aurc([(0.9, False), (0.1, True)])  # 잘 정렬될수록 낮다
+    tied = [(0.5, True), (0.5, False)]
+    assert aurc(tied) == aurc(tied[::-1]), "동점은 순서에 무관해야 한다"
+    assert pctl([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.95) == 10  # nearest-rank
+    assert pctl([1, 2, 3, 4], 0.5) == 2
+    assert pctl([], 0.95) == 0.0
 
 
 def main(runs_dir: str = "eval/runs") -> None:
+    _selfcheck()
     gold = {}
     for line in (ROOT / "eval/qa/demo_gold.jsonl").read_text(encoding="utf-8").splitlines():
         if line.strip():
@@ -89,7 +119,10 @@ def main(runs_dir: str = "eval/runs") -> None:
         # 스모크 채점 규약: gold 가 답변가능하고 라우팅이 맞아야 정답. 실제 실험에서는 EM/F1 로 대체된다.
         correct = lambda r: gold[r["qid"]]["answerable"] and r.get("route_pred") == gold[r["qid"]]["route_label"]  # noqa: E731
 
-        pairs = [(gold[r["qid"]]["route_label"], r.get("route_pred") or "ABSTAIN") for r in runs]
+        missing = [r["qid"] for r in runs if not r.get("route_pred")]
+        if missing:
+            print(f"⚠ {system}: route_pred 결측 {len(missing)}건 {missing[:3]} — 라우팅 지표에서 제외")
+        pairs = [(gold[r["qid"]]["route_label"], r["route_pred"]) for r in runs if r.get("route_pred")]
         tp = sum(r["verdict"] == "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in runs)
         fp = sum(r["verdict"] == "ABSTAIN" and gold[r["qid"]]["answerable"] for r in runs)
         fn = sum(r["verdict"] != "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in runs)
