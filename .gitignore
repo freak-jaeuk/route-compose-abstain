@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.egg-info/
+
+# 데이터·인덱스·산출물
+data/raw/
+data/structured/*.db
+data/graph/*.kuzu/
+data/vector/
+eval/runs/*.jsonl
+
+# 노트북
+.ipynb_checkpoints/

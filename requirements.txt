@@ -1,0 +1,20 @@
+pydantic>=2.7
+pyyaml>=6.0
+fastapi>=0.111
+uvicorn>=0.30
+
+# stores (embedded mode)
+qdrant-client>=1.11
+kuzu>=0.11
+
+# retrieval
+sentence-transformers>=3.0
+rank-bm25>=0.2.2
+kiwipiepy>=0.17
+
+# analysis
+pandas>=2.2
+numpy>=1.26
+matplotlib>=3.8
+scipy>=1.13
+scikit-learn>=1.5
