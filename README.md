@@ -21,7 +21,13 @@
 | Composite | 위 조합 | 복합 질의 |
 | Abstain | — | 답할 근거가 없는 질의 |
 
-전체 설계: **[ARCHITECTURE_v1.md](ARCHITECTURE_v1.md)**
+## 문서
+
+| 문서 | 내용 |
+|---|---|
+| [ARCHITECTURE_v1.md](ARCHITECTURE_v1.md) | 시스템 설계 — 컴포넌트·MCP 도구 계약·trace 스키마·보안 경계 |
+| [docs/RESEARCH_PLAN_v2.md](docs/RESEARCH_PLAN_v2.md) | 연구 설계 — 평가셋·라벨링 프로토콜·베이스라인·지표·일정 |
+| [eval/RESULTS.md](eval/RESULTS.md) | 측정 결과 (현재는 배선 점검 수치) |
 
 ## 실행
 
