@@ -23,20 +23,33 @@
 
 전체 설계: **[ARCHITECTURE_v1.md](ARCHITECTURE_v1.md)**
 
-## 실행 (예정)
+## 실행
+
+지금 동작하는 것은 **stub 도구 기반 배선 점검**이다. 추가 의존성 없이 (pydantic만) 돌아간다.
 
 ```bash
-pip install -r requirements.txt
-python -m rca.run --system proposed --split test
-python eval/analyze.py eval/runs/           # trace → 지표 표·그림
+PYTHONPATH=src python -m rca.demo    # 8문항 × 2조건 실행 → eval/runs/*.jsonl
+python eval/analyze.py               # trace → 지표 표
 ```
 
+```
+| system   | route F1 | coverage | sel.acc | abst.P | abst.R | AURC↓ | calls/q | tok/q |
+|----------|----------|----------|---------|--------|--------|-------|---------|-------|
+| doc_only |    0.080 |    1.000 |   0.250 |      — |  0.000 | 0.508 |    1.00 |   570 |
+| proposed |    0.800 |    0.625 |   1.000 |  1.000 |  1.000 | 0.103 |    1.00 |   348 |
+```
+
+수치 자체는 stub이라 의미 없다. 확인하려는 것은 **모든 지표가 trace 로그만으로 유도되는가**이다.
+실제 도구가 붙어도 `rca/demo.py`의 stub 함수만 교체되고 오케스트레이터·정책·계측은 그대로다.
+
+향후: `python -m rca.run --system proposed --split test`.
 외부 서버 없이 임베디드 스토어로 동작한다. 서버 모드는 `configs/base.yaml`의 `backend:` 로 전환.
 
 ## 로드맵
 
-- [ ] Step 0 — 라벨링 프로토콜 · trace 스키마 · 주지표 확정
-- [ ] Step 1 — 30문항 end-to-end 관통 (SQL · Document · Graph · Verifier)
+- [x] Step 0 — 아키텍처 확정 · trace 스키마 · 주지표(AURC) 확정 · 배선 점검
+- [ ] Step 0.5 — route 라벨링 프로토콜(κ) · contrastive unanswerable 규칙 확정
+- [ ] Step 1 — 30문항 end-to-end 관통 (실제 SQL · Document · Graph · Verifier)
 - [ ] Step 2 — 200문항 확장, 데모, 예비 결과 공개
 - [ ] Step 3 — 베이스라인 8종 · ablation 5종 · arXiv v1
 

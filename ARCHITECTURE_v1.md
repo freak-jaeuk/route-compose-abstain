@@ -121,7 +121,7 @@ class RunState(BaseModel):
     abstain_reason: AbstainReason | None
     clarify_reason: ClarifyReason | None
     answer: str | None
-    answer_confidence: float | None   # AURCC 계산에 필요한 연속 점수
+    answer_confidence: float | None   # AURC 계산에 필요한 연속 점수
     cited: list[str]                  # 실제 인용된 근거 (retrieved 와 구분)
 ```
 
@@ -269,7 +269,7 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 세 필드가 왜 따로 있어야 하는지:
 
 - `elapsed_ms` — 도구 `latency_ms` 의 합은 라우터·검증기·정책 단계를 빼먹는다. p95 지연은 이 값으로만 계산한다.
-- `answer_confidence` — `verdict` 만으로는 risk–coverage 곡선에 **점 하나**밖에 찍히지 않는다. 커버리지를 쓸어 AURCC를 적분하려면 연속 점수가 필요하다.
+- `answer_confidence` — `verdict` 만으로는 risk–coverage 곡선에 **점 하나**밖에 찍히지 않는다. 커버리지를 쓸어 AURC를 적분하려면 연속 점수가 필요하다.
 - `cited` — 검색된 근거(`evidence`)와 **실제 인용된 근거**는 다르다. 둘을 구분하지 않으면 citation precision을 정의할 수 없다.
 
 ### 8.1 trace → 논문 지표 유도표
@@ -282,7 +282,7 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 | Recall@k, MRR, nDCG@k | `output.chunks[].source_id` vs `gold_documents` |
 | Path Recall, Invalid Path Rate | `output.paths` vs `gold_graph_paths` |
 | Citation Precision, Evidence Coverage | `_run.cited` vs gold 근거 구간 (`evidence` 는 재현율 분모) |
-| **AURCC (주지표)** | `_run.answer_confidence` 로 임계값 스윕 → risk–coverage 곡선 적분 |
+| **AURC (주지표)** | `_run.answer_confidence` 로 임계값 스윕 → risk–coverage 곡선 적분 |
 | Abstention P/R/F1 | `_run.verdict == ABSTAIN` vs gold `answerable` |
 | CLARIFY 정밀도 | `_run.clarify_reason` vs gold `ambiguous` |
 | p95 latency | `_run.elapsed_ms` 의 분위수 (도구 `latency_ms` 합이 아님) |
@@ -428,13 +428,14 @@ route-compose-abstain/
 │   ├── tools/{schema,sql,docs,graph,verify}.py
 │   ├── mcp_server.py              # 도구 5종 노출
 │   ├── policy.py                  # ANSWER / CLARIFY / ABSTAIN
+│   ├── demo.py                    # stub 도구 배선 점검      ← 동작함
 │   └── api.py                     # FastAPI 데모
 ├── data/
 │   ├── raw/ structured/ docs/ graph/
 ├── eval/
-│   ├── qa/                        # gold JSONL (라벨 2인 + κ)
+│   ├── qa/                        # gold JSONL (라벨 2인 + κ)  ← demo_gold.jsonl 8문항
 │   ├── runs/                      # trace JSONL
-│   ├── analyze.py                 # trace → 지표 표·그림
+│   ├── analyze.py                 # trace → 지표 표·그림      ← 동작함
 │   └── RESULTS.md
 ├── deploy/                        # Dockerfile, compose (서버 모드 선택 시)
 ├── scripts/                       # 수집·색인·그래프 구축

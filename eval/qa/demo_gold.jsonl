@@ -1,0 +1,8 @@
+{"qid": "qa_001", "question": "2021~2023년 지역별 보험금 지급액 합계를 알려줘", "route_label": "SQL", "answerable": true}
+{"qid": "qa_002", "question": "실손의료보험의 면책사항은 무엇인가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "qa_003", "question": "암보험 특약이 수정하는 보장과 그 근거 법령 조항", "route_label": "GRAPH", "answerable": true}
+{"qid": "qa_004", "question": "2021~2023년 읍면동별 보험금 지급액 합계를 알려줘", "route_label": "ABSTAIN", "answerable": false, "twin_of": "qa_001", "gold_abstain_reason": "OUT_OF_SCHEMA"}
+{"qid": "qa_005", "question": "실손보험 가입자 홍길동의 청구 내역을 보여줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "PRIVACY_RESTRICTED"}
+{"qid": "qa_006", "question": "실손보험의 도입 취지를 설명하고 최근 3년 지급액 추이를 알려줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "qa_007", "question": "2030년 지역별 보험금 지급액 전망치를 알려줘", "route_label": "ABSTAIN", "answerable": false, "twin_of": "qa_001", "gold_abstain_reason": "OUT_OF_SCHEMA"}
+{"qid": "qa_008", "question": "자동차보험 대인배상의 보장 범위는 무엇인가", "route_label": "DOCUMENT", "answerable": true}
