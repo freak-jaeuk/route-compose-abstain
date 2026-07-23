@@ -272,6 +272,10 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 - `answer_confidence` — `verdict` 만으로는 risk–coverage 곡선에 **점 하나**밖에 찍히지 않는다. 커버리지를 쓸어 AURC를 적분하려면 연속 점수가 필요하다.
 - `cited` — 검색된 근거(`evidence`)와 **실제 인용된 근거**는 다르다. 둘을 구분하지 않으면 citation precision을 정의할 수 없다.
 
+`ok` 의 정의: **도구 실행 성공 여부**이며 근거 충분 여부가 아니다.
+검색 결과가 비어 검증 단계에서 거절된 경우 `ok=True` + `_run.abstain_reason=INSUFFICIENT_EVIDENCE` 로 남는다.
+둘을 섞으면 SQL invalid query rate 가 "쿼리는 멀쩡했는데 근거가 없던" 사례로 오염된다.
+
 ### 8.1 trace → 논문 지표 유도표
 
 | 논문 지표 | 유도 방식 |

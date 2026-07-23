@@ -118,7 +118,13 @@ def call_tool(tr: Tracer, st: RunState, tool: str, payload: dict, fn, tokens: tu
 
 
 def collect_cited(leg: str, out: dict, abstention: bool) -> list[str]:
-    """도구는 성공했지만 근거가 비어 있는 경우를 검증 단계에서 걸러낸다."""
+    """도구는 성공했지만 근거가 비어 있는 경우를 검증 단계에서 걸러낸다.
+
+    여기서 나는 예외는 traced 블록 **밖**이라 도구 줄의 `ok` 는 True 로 남는다.
+    의도된 것이다 — `ok` 는 "도구 실행 성공" 이지 "근거 충분" 이 아니며,
+    빈 검색 결과를 도구 실패로 찍으면 §8.1 의 invalid query rate 가 오염된다.
+    거절 사실은 `_run` 줄의 `abstain_reason` 에 남는다.
+    """
     if leg == "SQL":
         return [out["source_id"]]
     if leg == "DOCUMENT":
