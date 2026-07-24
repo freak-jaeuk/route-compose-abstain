@@ -25,6 +25,7 @@
 
 | 문서 | 내용 |
 |---|---|
+| [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) | **구현 현황과 기술 스택** — 지금 동작하는 것, 코드 지도, 설계 결정 |
 | [ARCHITECTURE_v1.md](ARCHITECTURE_v1.md) | 시스템 설계 — 컴포넌트·MCP 도구 계약·trace 스키마·보안 경계 |
 | [docs/RESEARCH_PLAN_v2.md](docs/RESEARCH_PLAN_v2.md) | 연구 설계 — 평가셋·라벨링 프로토콜·베이스라인·지표·일정 |
 | [eval/RESULTS.md](eval/RESULTS.md) | 측정 결과 (현재는 배선 점검 수치) |
