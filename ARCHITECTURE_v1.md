@@ -43,7 +43,7 @@ flowchart TD
 
     T1 --> ST[(SQLite / PostgreSQL)]
     T2 --> VS[(Qdrant · BM25)]
-    T3 --> GR[(Kùzu / Neo4j)]
+    T3 --> GR[(Ladybug / Neo4j)]
 
     T1 --> V[Evidence & Execution Verifier]
     T2 --> V
@@ -209,13 +209,13 @@ MCP는 연구적 기여가 아니라 **도구 인터페이스 표준화** 수단
 |---|---|---|
 | 정형 | SQLite (읽기전용 커넥션) | PostgreSQL |
 | 벡터 | Qdrant **local mode** (`path=`) | Qdrant 서버 |
-| 그래프 | **Kùzu** (openCypher, 임베디드) | Neo4j |
+| 그래프 | **Ladybug** (openCypher, 임베디드) | Neo4j (미검증) |
 
-**근거** — Kùzu와 Neo4j 모두 openCypher를 쓰므로 Graph Agent는 **쿼리 문자열을 공유**한다. 백엔드 차이는 커넥션 생성 함수 2개뿐이며 추상화 레이어를 만들지 않는다. 서버 모드는 `configs/base.yaml`의 `backend:` 값 하나로 전환한다.
+**근거** — 외부 서버 없이 `pip install` 후 바로 도는 것이 재현성의 실질 조건이다(개발 박스에 컨테이너 런타임 없음).
 
-**결과** — `pip install -r requirements.txt && python -m rca.demo` 로 전체 파이프라인 실행 가능. 컨테이너 운영 역량 증빙이 필요한 경우 `deploy/` 의 Dockerfile + compose로 서버 모드 구동.
+**그래프 백엔드 이력(정정)** — 초기 설계는 Kùzu를 쓰고 "openCypher라서 Kùzu↔Neo4j 쿼리 문자열을 공유, 교체 비용은 커넥션 함수 2개"라고 적었으나 **둘 다 사실이 아니었다**. (1) Kùzu는 상류가 2025-10에 아카이브되어 후속 포크 **Ladybug 0.18**로 옮겼다. (2) openCypher를 공유해도 스키마 DDL 필수·최단경로 문법 상이·walk/trail 시맨틱 차이로 쿼리가 그대로 이식되지 않는다. 따라서 백엔드를 **Ladybug 하나로 고정**하고 Neo4j는 "미검증, 전환 시 Graph Agent 재작성 필요"로 표기한다. 이 정정 자체가 기술 리스크 식별 사례다.
 
-**비용** — Kùzu는 Neo4j 대비 생태계(APOC, GDS)가 얇다. 본 연구는 순회·최단경로만 쓰므로 영향 없음.
+**결과** — `pip install -r requirements.txt` 후 `scripts/build_*.py`로 세 스토어를 구성하면 전체 파이프라인이 로컬에서 돈다. Ladybug는 순회·2-hop만 쓰므로 Neo4j 생태계(APOC/GDS) 부재는 영향 없다.
 
 ---
 
