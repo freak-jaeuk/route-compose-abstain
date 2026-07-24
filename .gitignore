@@ -22,3 +22,4 @@ data/law/
 
 # 문서 청크·임베딩은 파생물, build 스크립트로 재현
 data/documents/
+data/graph/idc.kuzu*

@@ -5,7 +5,7 @@ uvicorn>=0.30
 
 # stores (embedded mode)
 qdrant-client>=1.11
-kuzu>=0.11
+ladybug>=0.18   # kuzu 상류 아카이브(2025-10) 후속 포크
 
 # retrieval
 sentence-transformers>=3.0
