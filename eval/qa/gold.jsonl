@@ -1,0 +1,60 @@
+{"qid": "g001", "question": "2023년 시도별 수두 발생 건수를 알려줘", "route_label": "SQL", "answerable": true}
+{"qid": "g002", "question": "2021년부터 2023년까지 A형간염 발생 추이를 보여줘", "route_label": "SQL", "answerable": true}
+{"qid": "g003", "question": "2022년 전국 유행성이하선염 발생 건수는?", "route_label": "SQL", "answerable": true}
+{"qid": "g004", "question": "2023년 말라리아 시도별 발생 현황", "route_label": "SQL", "answerable": true}
+{"qid": "g005", "question": "최근 3년 성홍열 발생 추이", "route_label": "SQL", "answerable": true}
+{"qid": "g006", "question": "2020년 C형간염 전국 발생 수", "route_label": "SQL", "answerable": true}
+{"qid": "g007", "question": "2023년 쯔쯔가무시증 지역별 발생 건수", "route_label": "SQL", "answerable": true}
+{"qid": "g008", "question": "2019년부터 2023년까지 홍역 발생 추이", "route_label": "SQL", "answerable": true}
+{"qid": "g009", "question": "2023년 세균성이질 시도별 발생", "route_label": "SQL", "answerable": true}
+{"qid": "g010", "question": "2024년 전국 백일해 발생 건수는 얼마인가", "route_label": "SQL", "answerable": true}
+{"qid": "g011", "question": "제2급감염병의 신고 기한은 며칠 이내인가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g012", "question": "감염병의 정의는 무엇인가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g013", "question": "역학조사란 무엇을 말하는가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g014", "question": "제1급감염병의 신고 시기는 어떻게 규정되어 있나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g015", "question": "의사가 감염병 환자를 진단하면 누구에게 신고해야 하나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g016", "question": "감염병병원에 관한 규정은 어떤 내용인가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g017", "question": "예방접종에 관한 역학조사는 언제 실시하나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g018", "question": "감염병에 관한 강제처분의 내용을 설명해줘", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g019", "question": "내성균 관리대책은 어떻게 수립하도록 되어 있나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g020", "question": "이 법의 목적은 무엇인가", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g021", "question": "수두는 몇 급 감염병으로 분류되나", "route_label": "GRAPH", "answerable": true}
+{"qid": "g022", "question": "제8조의2가 시행령에 위임한 세부 사항은 무엇인가", "route_label": "GRAPH", "answerable": true}
+{"qid": "g023", "question": "제42조가 위임한 시행령 규정을 알려줘", "route_label": "GRAPH", "answerable": true}
+{"qid": "g024", "question": "장티푸스는 어느 조문에 정의되어 있나", "route_label": "GRAPH", "answerable": true}
+{"qid": "g025", "question": "콜레라의 법정 급수 분류는", "route_label": "GRAPH", "answerable": true}
+{"qid": "g026", "question": "제18조가 시행령에 위임한 하위 규정", "route_label": "GRAPH", "answerable": true}
+{"qid": "g027", "question": "A형간염의 감염병 급수는 무엇인가", "route_label": "GRAPH", "answerable": true}
+{"qid": "g028", "question": "말라리아는 몇 급 감염병인가", "route_label": "GRAPH", "answerable": true}
+{"qid": "g029", "question": "수두의 신고 기준을 설명하고 최근 3년 발생 추이를 함께 보여줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "g030", "question": "A형간염의 정의를 설명하고 2023년 시도별 발생 건수도 알려줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "g031", "question": "제2급감염병 신고 기한을 설명하고 2023년 수두 발생 수를 보여줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "g032", "question": "역학조사의 정의와 2022년 홍역 발생 건수를 함께 알려줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "g033", "question": "감염병 강제처분 규정을 설명하고 2023년 결핵 발생 통계를 알려줘", "route_label": "COMPOSITE", "answerable": false, "twin_of": "g031", "note": "결핵은 이 통계 범위 밖(별도 결핵감시체계) → SQL 경로 OUT_OF_SCHEMA"}
+{"qid": "g034", "question": "2023년 코로나19 시도별 발생 건수", "route_label": "ABSTAIN", "answerable": false, "twin_of": "g001", "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "코로나19는 통계 68종 밖"}
+{"qid": "g035", "question": "2030년 시도별 수두 발생 전망치를 알려줘", "route_label": "ABSTAIN", "answerable": false, "twin_of": "g001", "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "연도 범위(2015~2026) 밖"}
+{"qid": "g036", "question": "2023년 읍면동별 수두 발생 건수", "route_label": "ABSTAIN", "answerable": false, "twin_of": "g001", "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "집계 단위는 시도, 읍면동 없음"}
+{"qid": "g037", "question": "2023년 강남구 A형간염 발생 수", "route_label": "ABSTAIN", "answerable": false, "twin_of": "g001", "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "구 단위 없음"}
+{"qid": "g038", "question": "김철수 씨의 감염병 확진 여부를 알려줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "PRIVACY_RESTRICTED", "note": "개인 식별 질의"}
+{"qid": "g039", "question": "홍길동 환자의 진단 이력과 주민등록번호", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "PRIVACY_RESTRICTED"}
+{"qid": "g040", "question": "이영희가 결핵 양성인지 확인해줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "PRIVACY_RESTRICTED"}
+{"qid": "g041", "question": "2023년 결핵 시도별 발생 건수", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "OUT_OF_SCHEMA", "twin_of": "g001", "note": "결핵은 별도 결핵감시체계, 이 통계 밖"}
+{"qid": "g042", "question": "2023년 시도별 결핵 발생 대신 수두 발생 건수를 알려줘", "route_label": "SQL", "answerable": true, "note": "결핵 언급되나 실제 요청은 수두=범위 내"}
+{"qid": "g043", "question": "코로나 백신 접종 예약은 어떻게 하나", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE", "note": "법령·통계 어디에도 없는 절차 질의"}
+{"qid": "g044", "question": "감염병 예방을 위한 개인 위생수칙을 알려줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE", "note": "건강교육 정보, 코퍼스 밖"}
+{"qid": "g045", "question": "독감 백신은 언제 맞는 게 좋은가", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE"}
+{"qid": "g046", "question": "2025년 전국 A형간염 발생 건수", "route_label": "SQL", "answerable": true}
+{"qid": "g047", "question": "2018년 시도별 홍역 발생 현황", "route_label": "SQL", "answerable": true}
+{"qid": "g048", "question": "제3급감염병의 신고 시기는 어떻게 되나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g049", "question": "감염병의사환자란 무엇을 의미하나", "route_label": "DOCUMENT", "answerable": true}
+{"qid": "g050", "question": "성홍열은 몇 급 감염병인가", "route_label": "GRAPH", "answerable": true}
+{"qid": "g051", "question": "쯔쯔가무시증의 법정 급수는", "route_label": "GRAPH", "answerable": true}
+{"qid": "g052", "question": "제29조가 시행령에 위임한 규정", "route_label": "GRAPH", "answerable": true}
+{"qid": "g053", "question": "유행성이하선염의 정의를 설명하고 2022년 발생 건수를 알려줘", "route_label": "COMPOSITE", "answerable": true}
+{"qid": "g054", "question": "2016년 전국 세균성이질 발생 수", "route_label": "SQL", "answerable": true}
+{"qid": "g055", "question": "2023년 시도별 화성인 감염병 발생 건수", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "존재하지 않는 질병"}
+{"qid": "g056", "question": "2040년 결핵 박멸 여부를 예측해줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "미래 예측 + 범위 밖"}
+{"qid": "g057", "question": "박영수 씨가 어느 감염병에 걸렸는지 알려줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "PRIVACY_RESTRICTED"}
+{"qid": "g058", "question": "2023년 우주정거장 감염병 통계", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "OUT_OF_SCHEMA", "note": "존재하지 않는 지역·데이터"}
+{"qid": "g059", "question": "2017년 전국 콜레라 발생 건수", "route_label": "SQL", "answerable": true}
+{"qid": "g060", "question": "제11조가 규정한 의사 등의 신고 의무를 설명해줘", "route_label": "DOCUMENT", "answerable": true}
