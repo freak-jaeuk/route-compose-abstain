@@ -19,3 +19,6 @@ eval/runs/*.jsonl
 
 # 법령 원문은 재배포 대신 fetch 스크립트로 재현 (출처: 법제처)
 data/law/
+
+# 문서 청크·임베딩은 파생물, build 스크립트로 재현
+data/documents/
