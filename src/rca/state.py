@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+# 잘못된 사유 코드·경로가 대입 시점에 걸리도록 전 모델에 validate_assignment를 켠다.
+# (없으면 Literal 8종이 런타임에 아무것도 막지 못한다 — 워크플로우 감사 지적)
+_CFG = ConfigDict(validate_assignment=True)
 
 Route = Literal["SQL", "DOCUMENT", "GRAPH", "COMPOSITE", "ABSTAIN"]
 Verdict = Literal["ANSWER", "CLARIFY", "ABSTAIN"]
@@ -27,6 +31,7 @@ ClarifyReason = Literal[
 
 
 class ToolCall(BaseModel):
+    model_config = _CFG
     step: int
     tool: str
     input: dict = Field(default_factory=dict)
@@ -40,6 +45,7 @@ class ToolCall(BaseModel):
 
 
 class Evidence(BaseModel):
+    model_config = _CFG
     source_type: Literal["sql", "document", "graph"]
     source_id: str
     text: str = ""
@@ -48,6 +54,7 @@ class Evidence(BaseModel):
 
 
 class Budget(BaseModel):
+    model_config = _CFG
     max_steps: int = 8
     max_calls_per_tool: int = 3
     max_tokens: int = 20_000
@@ -70,6 +77,7 @@ class Budget(BaseModel):
 
 
 class RunState(BaseModel):
+    model_config = _CFG
     run_id: str
     qid: str
     question: str
