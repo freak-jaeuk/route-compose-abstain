@@ -13,3 +13,6 @@ eval/runs/*.jsonl
 
 # 노트북
 .ipynb_checkpoints/
+
+# 수집 재현에 필요한 코드 매핑은 추적
+!data/raw/code_grade.json
