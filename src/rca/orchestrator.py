@@ -43,8 +43,8 @@ class Agents:
         disease = self._match_disease(q)
         yrs = [int(y) for y in re.findall(r"(20\d\d)", q)]
         if "최근 3년" in q:
-            yrs = [2023, 2025]
-        regions = [r for r in _REGIONS if r in q]
+            yrs = [sql_tool.YEAR_MAX - 2, sql_tool.YEAR_MAX]   # 데이터 최신연도 기준
+        regions = [_REGION_ALIAS.get(r, r) for r in _REGIONS if r in q]
         agg = ("by_region" if re.search(r"시도별|지역별", q)
                else "by_year" if re.search(r"추이|연도별|년도별", q)
                else "sum")
@@ -61,7 +61,10 @@ class Agents:
 
 
 _REGIONS = ["서울", "부산", "대구", "인천", "대전", "울산", "경기", "강원",
-            "충북", "충남", "전북", "경북", "경남", "제주", "세종", "전남광주"]
+            "충북", "충남", "전북", "경북", "경남", "제주", "세종", "전남광주",
+            "전남", "광주"]
+# 통계 포털이 전남·광주를 '전남광주' 한 지역으로 제공 → 단독 언급도 그 컬럼으로 매핑
+_REGION_ALIAS = {"전남": "전남광주", "광주": "전남광주"}
 
 
 def _leg(st: RunState, tr: Tracer, agents: Agents, leg: str) -> str | None:
@@ -133,8 +136,14 @@ def _generate(st: RunState, tr: Tracer) -> tuple[str, float]:
 
 def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
               system: str = "proposed", threshold: float = 0.5,
-              abstention: bool = True, use_llm: bool = True) -> RunState:
-    """tr.query(qid) 컨텍스트 안에서 호출한다(step 번호가 질의마다 1부터)."""
+              abstention: bool = True, use_llm: bool = True,
+              generate: bool = True) -> RunState:
+    """tr.query(qid) 컨텍스트 안에서 호출한다(step 번호가 질의마다 1부터).
+
+    generate=False면 답변 텍스트 생성(느린 LLM 콜)을 건너뛴다. 평가에서
+    route·verdict·거절 지표만 필요할 때 120회 × 20초를 피한다. 이때 confidence는
+    근거 수 기반 휴리스틱으로, AURC의 연속 점수 역할을 한다.
+    """
     st = RunState(run_id=tr.run_fields.get("run_id", "?"),
                   qid=qid, question=question, system=system)
     t0 = time.perf_counter()
@@ -159,8 +168,10 @@ def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
     st.route_pred, st.route_conf = r["route"], r["conf"]
 
     if st.route_pred == "ABSTAIN":
-        return finish(verdict="ABSTAIN", abstain_reason="INSUFFICIENT_EVIDENCE",
-                      answer_confidence=r["conf"])
+        if abstention:
+            return finish(verdict="ABSTAIN", abstain_reason="INSUFFICIENT_EVIDENCE",
+                          answer_confidence=r["conf"])
+        st.route_pred = "DOCUMENT"   # 거절 OFF: 근거가 애매해도 문서 경로로 답을 강제한다
     if abstention and st.route_conf < threshold:
         return finish(verdict="ABSTAIN", abstain_reason="LOW_ROUTER_CONFIDENCE",
                       answer_confidence=st.route_conf)
@@ -184,5 +195,9 @@ def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
     if not st.evidence and abstention:
         return finish(verdict="ABSTAIN", abstain_reason="INSUFFICIENT_EVIDENCE",
                       answer_confidence=0.1)
+    if not generate:
+        # 답변 텍스트 없이 verdict·confidence만. confidence = 근거 수 기반(AURC용 연속점수).
+        conf = min(0.9, 0.5 + 0.1 * len(st.evidence))
+        return finish(verdict="ANSWER", answer_confidence=conf)
     answer, conf = _generate(st, tr)
     return finish(verdict="ANSWER", answer=answer, answer_confidence=conf)
