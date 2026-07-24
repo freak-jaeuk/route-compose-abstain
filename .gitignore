@@ -16,3 +16,6 @@ eval/runs/*.jsonl
 
 # 수집 재현에 필요한 코드 매핑은 추적
 !data/raw/code_grade.json
+
+# 법령 원문은 재배포 대신 fetch 스크립트로 재현 (출처: 법제처)
+data/law/
