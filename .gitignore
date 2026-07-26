@@ -24,3 +24,13 @@ data/law/
 data/documents/
 data/graph/idc.kuzu*
 data/runs/
+
+# LaTeX 빌드 산출물
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/build.log
+paper/acl-style-files-master/
+paper/acl.tar.gz
