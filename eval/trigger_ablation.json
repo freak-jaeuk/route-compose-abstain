@@ -1,0 +1,47 @@
+{
+ "n": 60,
+ "base_coverage": 0.6,
+ "base_risk": 0.16666666666666666,
+ "triggers": [
+  {
+   "reason": "INSUFFICIENT_EVIDENCE",
+   "trigger": "evidence gate",
+   "n": 15,
+   "would_be_wrong": 5,
+   "would_be_recovered": 10,
+   "cf_coverage": 0.85,
+   "cf_risk": 0.21568627450980393,
+   "risk_delta": 0.049019607843137275
+  },
+  {
+   "reason": "PRIVACY_RESTRICTED",
+   "trigger": "privacy screen",
+   "n": 6,
+   "would_be_wrong": 4,
+   "would_be_recovered": 2,
+   "cf_coverage": 0.7,
+   "cf_risk": 0.23809523809523808,
+   "risk_delta": 0.07142857142857142
+  },
+  {
+   "reason": "GRAPH_PATH_NOT_FOUND",
+   "trigger": "graph path check",
+   "n": 2,
+   "would_be_wrong": 0,
+   "would_be_recovered": 2,
+   "cf_coverage": 0.6333333333333333,
+   "cf_risk": 0.15789473684210525,
+   "risk_delta": -0.008771929824561403
+  },
+  {
+   "reason": "OUT_OF_SCHEMA",
+   "trigger": "schema-range check",
+   "n": 1,
+   "would_be_wrong": 1,
+   "would_be_recovered": 0,
+   "cf_coverage": 0.6166666666666667,
+   "cf_risk": 0.1891891891891892,
+   "risk_delta": 0.022522522522522542
+  }
+ ]
+}

@@ -75,10 +75,16 @@ def answered_correct(r, gold) -> bool:
 
 
 def risk_coverage(runs, gold):
-    """신뢰도 내림차순으로 커버리지를 넓히며 위험(오답률)을 누적. 동점은 블록 처리."""
+    """신뢰도 내림차순으로 커버리지를 넓히며 위험(오답률)을 기록한다.
+
+    AURC는 **커버리지 가중 평균**이다: 곡선 위 점을 그냥 평균하면 동점 블록이 클수록
+    적게 세어져(블록 하나가 1표) 값이 왜곡된다. 표준 정의대로 예시 단위로 평균한다
+    \\citep{geifman2019bias}. 동점 구간은 임계값으로 나눌 수 없으므로 한 덩어리로
+    편입하고 구간 끝의 위험을 공유하되, 가중치는 구간 크기만큼 준다.
+    """
     scored = sorted(((r.get("answer_confidence") or 0.0, would_be_correct(r, gold)) for r in runs),
                     key=lambda x: -x[0])
-    cov, risk = [], []
+    cov, risk, per_example = [], [], []
     wrong = i = 0
     n = len(scored)
     while i < n:
@@ -88,8 +94,9 @@ def risk_coverage(runs, gold):
             j += 1
         cov.append(j / n)
         risk.append(wrong / j)
+        per_example += [wrong / j] * (j - i)   # 커버리지 가중
         i = j
-    aurc = sum(risk) / len(risk) if risk else 0.0
+    aurc = sum(per_example) / len(per_example) if per_example else 0.0
     return cov, risk, aurc
 
 

@@ -56,7 +56,7 @@ scripts/
 ├── build_document_chunks.py 문서 청킹
 └── build_graph.py           지식그래프
 eval/
-├── qa/gold.jsonl   60문항 (답변가능 40 + 답변불가 20, twin 포함)
+├── qa/gold.jsonl   60문항 (답변가능 44 + 답변불가 16, twin 6)
 ├── run_eval.py     2조건 실행
 └── analyze_eval.py trace → 지표
 ```

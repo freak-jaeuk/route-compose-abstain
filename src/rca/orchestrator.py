@@ -12,7 +12,7 @@ import re
 import time
 
 from . import llm, router
-from .state import RunState
+from .state import Budget, RunState
 from .tools import docs as docs_tool
 from .tools import graph as graph_tool
 from .tools import sql as sql_tool
@@ -144,8 +144,11 @@ def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
     route·verdict·거절 지표만 필요할 때 120회 × 20초를 피한다. 이때 confidence는
     근거 수 기반 휴리스틱으로, AURC의 연속 점수 역할을 한다.
     """
+    # CPU 검색·리랭킹이 느려 기본 30초 deadline이 평가 중 발동했다. 예산 트리거가
+    # 거절 효과 측정에 섞이지 않도록 평가에서는 넉넉히 준다(무한 루프 방지는 step 한도가 맡는다).
     st = RunState(run_id=tr.run_fields.get("run_id", "?"),
-                  qid=qid, question=question, system=system)
+                  qid=qid, question=question, system=system,
+                  budget=Budget(deadline_ms=180_000))
     t0 = time.perf_counter()
 
     def finish(**kw) -> RunState:
@@ -155,10 +158,12 @@ def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
 
     # 0) PII 게이트 — 라우팅보다 앞에 둔다. 개인 식별 질의가 라우터에서 우연히
     #    ABSTAIN 처리되면 사유가 PRIVACY_RESTRICTED 대신 다른 코드로 찍혀 측정이 왜곡된다.
-    try:
-        sql_tool.guard_pii(question)
-    except sql_tool.SqlError as e:
-        return finish(verdict="ABSTAIN", abstain_reason=e.reason, answer_confidence=0.02)
+    #    abstention=False 는 실험 통제 조건이며 정책 거절까지 끈다(배포 설정이 아니다).
+    if abstention:
+        try:
+            sql_tool.guard_pii(question)
+        except sql_tool.SqlError as e:
+            return finish(verdict="ABSTAIN", abstain_reason=e.reason, answer_confidence=0.02)
 
     # 1) 라우팅
     with tr.step("route", {"q": question}, kind="llm") as rec:
@@ -185,8 +190,10 @@ def run_query(question: str, qid: str, tr: Tracer, agents: Agents,
                 "GRAPH": "query_knowledge_graph"}[leg]
         elapsed = int((time.perf_counter() - t0) * 1000)
         if st.budget.exhausted(st.steps, elapsed, next_tool=tool):
-            return finish(verdict="ABSTAIN", abstain_reason="BUDGET_EXCEEDED",
-                          answer_confidence=0.1)
+            if abstention:
+                return finish(verdict="ABSTAIN", abstain_reason="BUDGET_EXCEEDED",
+                              answer_confidence=0.1)
+            break   # 통제 조건: 예산이 끝나면 실행만 멈추고, 모은 근거로 답한다
         reason = _leg(st, tr, agents, leg)
         if reason and abstention:
             return finish(verdict="ABSTAIN", abstain_reason=reason, answer_confidence=0.1)
