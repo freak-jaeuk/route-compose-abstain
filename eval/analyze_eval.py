@@ -69,8 +69,13 @@ def main() -> None:
         sys.exit("trace 없음 — 먼저 run_eval.py")
 
     n = len(gold)
-    print(f"\n## 거절 ON/OFF 비교 (문항 {n})\n")
-    head = ["condition", "route F1", "coverage", "sel.acc", "오답률", "abst.P", "abst.R", "AURC↓"]
+    n_una = sum(1 for g in gold.values() if not g["answerable"])
+    print(f"\n## 거절 ON/OFF 비교 (문항 {n}, 답변불가 {n_una})")
+    print("\n두 지표 family를 섞지 않는다. **answerability**는 '답할지 말지'의 품질만 보고"
+          "\n(답변불가에 답하면 오답, 라우팅 무관), **task**는 라우팅 정확도까지 포함한다."
+          "\n논문 헤드라인은 answerability 쪽이다.\n")
+    head = ["condition", "coverage", "risk(ans)", "AURC(ans)↓", "abst.P", "abst.R",
+            "route F1", "err(task)", "sel.acc(task)"]
     print("| " + " | ".join(head) + " |")
     print("|" + "|".join(["---"] * len(head)) + "|")
 
@@ -78,8 +83,13 @@ def main() -> None:
         rs = runs_by.get(system)
         if not rs:
             continue
-        # correct = gold가 답변가능하고 라우팅이 gold 라벨과 일치. 답변불가는 거절이 정답.
-        def correct(r):
+
+        def answerable(r):
+            """answerability 기준: 이 질의에 답했다면 맞았을까 = gold가 답변가능한가."""
+            return bool(gold[r["qid"]]["answerable"])
+
+        def task_correct(r):
+            """task 기준: 라우팅까지 맞아야 정답. 답변불가는 거절이 정답."""
             g = gold[r["qid"]]
             if not g["answerable"]:
                 return r["verdict"] == "ABSTAIN"
@@ -87,36 +97,37 @@ def main() -> None:
 
         answered = [r for r in rs if r["verdict"] == "ANSWER"]
         pairs = [(gold[r["qid"]]["route_label"], r.get("route_pred") or "ABSTAIN") for r in rs]
+        cov = len(answered) / n
 
-        # 답한 것 중 정답 / 오답률 = 답했는데 틀린 것(답변불가에 답 or 라우팅 오류)
-        ans_correct = sum(correct(r) for r in answered)
-        sel_acc = ans_correct / len(answered) if answered else 0.0
-        wrong_answered = sum(not correct(r) for r in answered)
-        err_rate = wrong_answered / len(answered) if answered else 0.0
+        # answerability family (논문 헤드라인)
+        risk_ans = (sum(not answerable(r) for r in answered) / len(answered)) if answered else 0.0
+        auc_ans = aurc([(r.get("answer_confidence") or 0.0, answerable(r)) for r in rs])
 
-        # 거절 정밀·재현 (답변불가 gold 기준)
+        # task family (라우팅 포함)
+        sel_acc = (sum(task_correct(r) for r in answered) / len(answered)) if answered else 0.0
+        err_task = 1.0 - sel_acc if answered else 0.0
+
         tp = sum(r["verdict"] == "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in rs)
         fp = sum(r["verdict"] == "ABSTAIN" and gold[r["qid"]]["answerable"] for r in rs)
         fn = sum(r["verdict"] != "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in rs)
 
-        auc = aurc([(r.get("answer_confidence") or 0.0, correct(r)) for r in rs])
-        cov = len(answered) / n
-
         print("| " + " | ".join([
-            system, f"{macro_f1(pairs):.3f}", f"{cov:.3f}", f"{sel_acc:.3f}",
-            f"{err_rate:.3f}", f"{tp/(tp+fp):.3f}" if tp+fp else "—",
-            f"{tp/(tp+fn):.3f}" if tp+fn else "—", f"{auc:.3f}",
+            system, f"{cov:.3f}", f"{risk_ans:.3f}", f"{auc_ans:.3f}",
+            f"{tp/(tp+fp):.3f}" if tp+fp else "—", f"{tp/(tp+fn):.3f}" if tp+fn else "—",
+            f"{macro_f1(pairs):.3f}", f"{err_task:.3f}", f"{sel_acc:.3f}",
         ]) + " |")
 
-    print("\n### 거절 사유 분포 (proposed)")
-    dist = defaultdict(int)
+    print("\n### 거절 사유 분포 (proposed) — 정당한 거절 / 오거절")
+    just, false_ = defaultdict(int), defaultdict(int)
     for r in runs_by.get("proposed", []):
-        if r.get("abstain_reason"):
-            dist[r["abstain_reason"]] += 1
-    for k, v in sorted(dist.items(), key=lambda x: -x[1]):
-        print(f"  {k}: {v}")
+        if not r.get("abstain_reason"):
+            continue
+        (false_ if gold[r["qid"]]["answerable"] else just)[r["abstain_reason"]] += 1
+    for k in sorted(set(just) | set(false_), key=lambda x: -(just[x] + false_[x])):
+        print(f"  {k}: {just[k]} / {false_[k]}")
 
-    print("\n핵심: 거절 OFF는 답변불가 20문항에 전부 답해 오답률↑. 거절 ON은 그 오답을 거절로 전환.")
+    print(f"\n핵심: 거절 OFF는 답변불가 {n_una}문항에 전부 답한다. 거절 ON은 그중 일부를 거절로 전환하되,"
+          "\n답변가능 질의도 일부 거절해 coverage를 잃는다. CI는 bootstrap_ci.py 참조.")
 
 
 if __name__ == "__main__":
