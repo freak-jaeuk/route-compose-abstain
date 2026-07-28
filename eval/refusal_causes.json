@@ -1,0 +1,133 @@
+{
+ "false_refusals": [
+  {
+   "qid": "g013",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g014",
+   "logged_reason": "GRAPH_PATH_NOT_FOUND",
+   "root_cause": "router_wrong_path"
+  },
+  {
+   "qid": "g015",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  },
+  {
+   "qid": "g016",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g017",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g019",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g029",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  },
+  {
+   "qid": "g030",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  },
+  {
+   "qid": "g031",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  },
+  {
+   "qid": "g032",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  },
+  {
+   "qid": "g046",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "zero_count"
+  },
+  {
+   "qid": "g048",
+   "logged_reason": "GRAPH_PATH_NOT_FOUND",
+   "root_cause": "router_wrong_path"
+  },
+  {
+   "qid": "g049",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  },
+  {
+   "qid": "g053",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  }
+ ],
+ "justified": [
+  {
+   "qid": "g033",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "composite_partial"
+  },
+  {
+   "qid": "g035",
+   "logged_reason": "OUT_OF_SCHEMA",
+   "root_cause": "router_wrong_path"
+  },
+  {
+   "qid": "g038",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  },
+  {
+   "qid": "g039",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  },
+  {
+   "qid": "g040",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  },
+  {
+   "qid": "g043",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g044",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g045",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g056",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_no_match"
+  },
+  {
+   "qid": "g057",
+   "logged_reason": "PRIVACY_RESTRICTED",
+   "root_cause": "policy_overmatch"
+  }
+ ],
+ "cause_distribution": {
+  "router_no_match": 4,
+  "router_wrong_path": 2,
+  "policy_overmatch": 2,
+  "composite_partial": 5,
+  "zero_count": 1
+ }
+}

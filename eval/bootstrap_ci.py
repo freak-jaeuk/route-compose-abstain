@@ -42,6 +42,33 @@ def load():
     return gold, by
 
 
+def _aurc(pairs) -> float:
+    """커버리지 가중 AURC. (confidence, would_be_correct) 목록."""
+    ranked = sorted(pairs, key=lambda x: -x[0])
+    per, wrong, i, n = [], 0, 0, len(ranked)
+    while i < n:
+        j = i
+        while j < n and ranked[j][0] == ranked[i][0]:
+            wrong += not ranked[j][1]
+            j += 1
+        per += [wrong / j] * (j - i)
+        i = j
+    return sum(per) / len(per) if per else 0.0
+
+
+def _auroc(pairs) -> float:
+    """AUROC — 신뢰도가 답변가능/불가를 얼마나 가르는가. 동점은 0.5로 센다.
+
+    AURC와 달리 커버리지에 의존하지 않으므로, '신호 자체가 얼마나 약한가'를 직접 보여준다.
+    """
+    pos = [c for c, y in pairs if y]
+    neg = [c for c, y in pairs if not y]
+    if not pos or not neg:
+        return 0.5
+    wins = sum((p > n) + 0.5 * (p == n) for p in pos for n in neg)
+    return wins / (len(pos) * len(neg))
+
+
 def metrics(runs_by_qid, qids, gold) -> dict:
     """한 재표집 샘플에서의 지표. runs_by_qid: {qid: _run row}."""
     rs = [runs_by_qid[q] for q in qids if q in runs_by_qid]
@@ -58,7 +85,14 @@ def metrics(runs_by_qid, qids, gold) -> dict:
     tp = sum(r.get("verdict") == "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in rs)
     fp = sum(r.get("verdict") == "ABSTAIN" and gold[r["qid"]]["answerable"] for r in rs)
     fn = sum(r.get("verdict") != "ABSTAIN" and not gold[r["qid"]]["answerable"] for r in rs)
+    # AURC: 신뢰도가 답변가능성을 얼마나 잘 정렬하는가(라우팅 무관)
+    aurc = _aurc([(r.get("answer_confidence") or 0.0, bool(gold[r["qid"]]["answerable"]))
+                  for r in rs])
+    auroc = _auroc([(r.get("answer_confidence") or 0.0, bool(gold[r["qid"]]["answerable"]))
+                    for r in rs])
     return {
+        "aurc": aurc,
+        "auroc": auroc,
         "risk": risk,
         "coverage": cov,
         "abst_precision": tp / (tp + fp) if tp + fp else 0.0,
@@ -73,6 +107,18 @@ def ci(vals, alpha=0.05):
     return lo, hi
 
 
+
+def _assert_complete(by, gold):
+    """조건별 문항 수가 gold와 다르면 즉시 실패한다.
+
+    부분 실행된 trace로도 지표가 '그럴듯하게' 계산되는 것이 이 파이프라인의 실제 위험이다
+    (리뷰어가 17/60 실행분으로 계산된 수치를 본 사례가 있다).
+    """
+    for system, rs in by.items():
+        n = len(rs) if isinstance(rs, list) else len(rs)
+        if n != len(gold):
+            raise SystemExit(f"INCOMPLETE: {system} has {n}/{len(gold)} queries — rerun eval/run_eval.py")
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--B", type=int, default=10000)
@@ -81,6 +127,7 @@ def main() -> None:
     random.seed(args.seed)
 
     gold, by = load()
+    _assert_complete(by, gold)
     if "proposed" not in by or "no_abstain" not in by:
         sys.exit("두 조건의 trace가 모두 필요하다")
     qids = sorted(set(by["proposed"]) & set(by["no_abstain"]))
@@ -88,7 +135,7 @@ def main() -> None:
     print(f"공통 문항 {n}개, B={args.B} paired bootstrap\n")
 
     point = {s: metrics(by[s], qids, gold) for s in ("proposed", "no_abstain")}
-    keys = ["risk", "coverage", "abst_precision", "abst_recall"]
+    keys = ["risk", "coverage", "aurc", "auroc", "abst_precision", "abst_recall"]
     draws = {s: {k: [] for k in keys} for s in point}
     diffs = {k: [] for k in keys}
 

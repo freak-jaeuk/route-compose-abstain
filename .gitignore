@@ -9,7 +9,6 @@ data/raw/
 data/structured/*.db
 data/graph/*.kuzu/
 data/vector/
-eval/runs/*.jsonl
 
 # 노트북
 .ipynb_checkpoints/
@@ -34,3 +33,6 @@ paper/*.blg
 paper/build.log
 paper/acl-style-files-master/
 paper/acl.tar.gz
+
+# 평가 trace는 논문 재현에 필요하므로 추적한다(논문이 공개를 명시함, 수백 KB)
+!eval/runs/*.jsonl

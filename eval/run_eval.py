@@ -24,9 +24,20 @@ ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "eval/qa/gold.jsonl"
 RUNS = ROOT / "eval/runs"
 
+from rca.orchestrator import ALL_TRIGGERS  # noqa: E402
+
+# 주 비교 2조건 + leave-one-trigger-out 4조건.
+# LOO는 counterfactual 추정을 실측으로 대체한다: 트리거를 실제로 끄고 다시 돌리면
+# 거절되던 질의가 어느 경로를 타는지, 정말 답이 나오는지가 로그에 남는다.
+LOO_TRIGGERS = ["INSUFFICIENT_EVIDENCE", "PRIVACY_RESTRICTED",
+                "OUT_OF_SCHEMA", "GRAPH_PATH_NOT_FOUND"]
+
 CONDITIONS = [
-    {"name": "proposed", "abstention": True},
-    {"name": "no_abstain", "abstention": False},
+    {"name": "proposed", "abstain_on": ALL_TRIGGERS},
+    {"name": "no_abstain", "abstain_on": frozenset()},
+] + [
+    {"name": f"loo_{t.lower()}", "abstain_on": ALL_TRIGGERS - {t}}
+    for t in LOO_TRIGGERS
 ]
 
 
@@ -51,7 +62,7 @@ def main() -> None:
                 continue
             with tr.query(g["qid"]) as summ:
                 st = run_query(g["question"], g["qid"], tr, agents,
-                               system=cfg["name"], abstention=cfg["abstention"],
+                               system=cfg["name"], abstain_on=cfg["abstain_on"],
                                use_llm=False, generate=False)
                 summ.update(verdict=st.verdict, answer_confidence=st.answer_confidence,
                             abstain_reason=st.abstain_reason, route_pred=st.route_pred,

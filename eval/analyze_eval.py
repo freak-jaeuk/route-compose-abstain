@@ -51,6 +51,18 @@ def aurc(scored):
     return sum(risks) / len(risks) if risks else 0.0
 
 
+
+def _assert_complete(by, gold):
+    """조건별 문항 수가 gold와 다르면 즉시 실패한다.
+
+    부분 실행된 trace로도 지표가 '그럴듯하게' 계산되는 것이 이 파이프라인의 실제 위험이다
+    (리뷰어가 17/60 실행분으로 계산된 수치를 본 사례가 있다).
+    """
+    for system, rs in by.items():
+        n = len(rs) if isinstance(rs, list) else len(rs)
+        if n != len(gold):
+            raise SystemExit(f"INCOMPLETE: {system} has {n}/{len(gold)} queries — rerun eval/run_eval.py")
+
 def main() -> None:
     gold = {}
     for line in GOLD.read_text(encoding="utf-8").splitlines():
@@ -67,6 +79,7 @@ def main() -> None:
             runs_by[r["system"]].append(r)
     if not runs_by:
         sys.exit("trace 없음 — 먼저 run_eval.py")
+    _assert_complete(runs_by, gold)
 
     n = len(gold)
     n_una = sum(1 for g in gold.values() if not g["answerable"])
