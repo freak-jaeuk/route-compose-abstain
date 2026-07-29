@@ -1,0 +1,15 @@
+{
+ "n": 60,
+ "matched_coverage": 0.5666666666666667,
+ "k": 34,
+ "risk_abstention_on": 0.11764705882352941,
+ "risk_off_confidence_topk": 0.058823529411764705,
+ "risk_off_full_coverage": 0.26666666666666666,
+ "risk_random_rejection": {
+  "mean": 0.26742647058823554,
+  "ci95": [
+   0.17647058823529413,
+   0.35294117647058826
+  ]
+ }
+}

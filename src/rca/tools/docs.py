@@ -19,7 +19,9 @@ from pathlib import Path
 
 import numpy as np
 
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")   # CPU 고정
+# 장치는 환경에 맡긴다. 공유 GPU가 꽉 차 있으면 RCA_DEVICE=cpu로 내려 쓰고,
+# 여유가 있으면 GPU가 CPU 코어를 잡아먹지 않는다. 추론은 결정론적이라 결과는 같다.
+_DEVICE = os.environ.get("RCA_DEVICE", "cpu")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")        # 캐시된 모델만 사용(권한 경고·네트워크 조회 억제)
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -36,7 +38,7 @@ def _emb_model():
     global _embedder
     if _embedder is None:
         from sentence_transformers import SentenceTransformer
-        _embedder = SentenceTransformer(EMB_MODEL, device="cpu")
+        _embedder = SentenceTransformer(EMB_MODEL, device=_DEVICE)
     return _embedder
 
 
@@ -44,7 +46,7 @@ def _rerank_model():
     global _reranker
     if _reranker is None:
         from sentence_transformers import CrossEncoder
-        _reranker = CrossEncoder(RERANK_MODEL, device="cpu")
+        _reranker = CrossEncoder(RERANK_MODEL, device=_DEVICE)
     return _reranker
 
 

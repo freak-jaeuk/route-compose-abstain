@@ -42,12 +42,17 @@ CONDITIONS = [
 
 
 def main() -> None:
-    import json
+    import argparse, json
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", default=None,
+                    help="이 조건 하나만 실행. 셸에서 조건별로 순차 호출하면 "
+                         "동시 실행에서 생기는 done-체크 경쟁 조건을 원천 차단한다.")
+    args = ap.parse_args()
     gold = [json.loads(l) for l in GOLD.read_text(encoding="utf-8").splitlines() if l.strip()]
     agents = Agents()   # 모델·DB 1회 로드
     print(f"문항 {len(gold)} × 조건 {len(CONDITIONS)}")
 
-    for cfg in CONDITIONS:
+    for cfg in [c for c in CONDITIONS if not args.only or c["name"] == args.only]:
         out = RUNS / f"{cfg['name']}.jsonl"
         # 이어가기: 이미 완료된 qid는 건너뛴다(공유 메모리 환경에서 OOM으로 죽어도 재개 가능).
         done = set()
