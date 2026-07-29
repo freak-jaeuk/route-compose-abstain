@@ -1,29 +1,29 @@
 {
  "base": {
   "n": 60,
-  "coverage": 0.6,
-  "risk": 0.16666666666666666,
-  "answered": 36
+  "coverage": 0.5666666666666667,
+  "risk": 0.11764705882352941,
+  "answered": 34
  },
  "triggers": [
   {
    "reason": "INSUFFICIENT_EVIDENCE",
    "trigger": "evidence gate",
    "n": 60,
-   "coverage": 0.7166666666666667,
-   "risk": 0.16279069767441862,
-   "answered": 43,
-   "delta_risk_measured": -0.003875968992248041,
+   "coverage": 0.6666666666666666,
+   "risk": 0.1,
+   "answered": 40,
+   "delta_risk_measured": -0.017647058823529405,
    "delta_risk_estimated": 0.049019607843137275,
-   "estimate_error": 0.052895576835385316
+   "estimate_error": 0.06666666666666668
   },
   {
    "reason": "PRIVACY_RESTRICTED",
    "trigger": "privacy screen",
    "n": 60,
-   "coverage": 0.6,
-   "risk": 0.16666666666666666,
-   "answered": 36,
+   "coverage": 0.5666666666666667,
+   "risk": 0.11764705882352941,
+   "answered": 34,
    "delta_risk_measured": 0.0,
    "delta_risk_estimated": 0.07142857142857142,
    "estimate_error": 0.07142857142857142
@@ -31,13 +31,24 @@
   {
    "reason": "OUT_OF_SCHEMA",
    "trigger": "schema-range check",
-   "n": 10,
-   "coverage": 1.0,
-   "risk": 0.0,
-   "answered": 10,
-   "delta_risk_measured": -0.16666666666666666,
+   "n": 60,
+   "coverage": 0.5666666666666667,
+   "risk": 0.11764705882352941,
+   "answered": 34,
+   "delta_risk_measured": 0.0,
    "delta_risk_estimated": 0.022522522522522542,
-   "estimate_error": 0.1891891891891892
+   "estimate_error": 0.022522522522522542
+  },
+  {
+   "reason": "GRAPH_PATH_NOT_FOUND",
+   "trigger": "graph path check",
+   "n": 60,
+   "coverage": 0.5666666666666667,
+   "risk": 0.11764705882352941,
+   "answered": 34,
+   "delta_risk_measured": 0.0,
+   "delta_risk_estimated": -0.008771929824561403,
+   "estimate_error": -0.008771929824561403
   }
  ]
 }
