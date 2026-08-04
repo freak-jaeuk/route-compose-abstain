@@ -123,6 +123,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--B", type=int, default=10000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--stratify", action="store_true",
+                    help="답변가능/불가 비율을 원표본대로 고정해 재표집한다. "
+                         "답변불가가 16개뿐이라 비층화 리샘플은 그 비율이 크게 흔들리고, "
+                         "risk·AUROC의 분산이 그 흔들림까지 포함해 부풀어 오른다.")
     args = ap.parse_args()
     random.seed(args.seed)
 
@@ -139,8 +143,19 @@ def main() -> None:
     draws = {s: {k: [] for k in keys} for s in point}
     diffs = {k: [] for k in keys}
 
+    # 층화용 분할. 답변불가 16 / 답변가능 44 라는 구성 자체는 벤치마크 설계값이지
+    # 표집 변동이 아니므로, 층화하면 그 부분의 분산이 구간에서 빠진다.
+    pos = [q for q in qids if gold[q]["answerable"]]
+    neg = [q for q in qids if not gold[q]["answerable"]]
+    if args.stratify:
+        print(f"층화: 답변가능 {len(pos)} / 답변불가 {len(neg)} 비율 고정\n")
+
     for _ in range(args.B):
-        samp = [random.choice(qids) for _ in range(n)]   # 문항을 쌍으로 재표집
+        if args.stratify:
+            samp = ([random.choice(pos) for _ in range(len(pos))] +
+                    [random.choice(neg) for _ in range(len(neg))])
+        else:
+            samp = [random.choice(qids) for _ in range(n)]   # 문항을 쌍으로 재표집
         m_on = metrics(by["proposed"], samp, gold)
         m_off = metrics(by["no_abstain"], samp, gold)
         for k in keys:
