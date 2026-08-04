@@ -31,8 +31,10 @@ paper/*.out
 paper/*.bbl
 paper/*.blg
 paper/build.log
-paper/acl-style-files-master/
-paper/acl.tar.gz
+# 논문 원고 일체는 추적하지 않는다. 이 저장소는 public이고 계정은 실명인데
+# 원고는 익명 심사 중이다 — PDF가 공개되면 제목 검색만으로 저자가 드러난다.
+# 채택 후 camera-ready 시점에 다시 포함한다. 로컬 히스토리는 paper-history 브랜치.
+paper/
 
 # 평가 trace는 논문 재현에 필요하므로 추적한다(논문이 공개를 명시함, 수백 KB)
 !eval/runs/*.jsonl
