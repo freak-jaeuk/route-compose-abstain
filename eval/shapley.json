@@ -1,0 +1,42 @@
+{
+ "players": [
+  "INSUFFICIENT_EVIDENCE",
+  "PRIVACY_RESTRICTED",
+  "OUT_OF_SCHEMA",
+  "GRAPH_PATH_NOT_FOUND"
+ ],
+ "v": {
+  "shap_none": 0.17391304347826086,
+  "shap_E": 0.11764705882352941,
+  "shap_P": 0.17391304347826086,
+  "shap_S": 0.09523809523809523,
+  "shap_G": 0.18181818181818182,
+  "shap_EP": 0.11764705882352941,
+  "shap_ES": 0.11764705882352941,
+  "shap_EG": 0.11764705882352941,
+  "shap_PS": 0.09523809523809523,
+  "shap_PG": 0.18181818181818182,
+  "shap_SG": 0.1,
+  "loo_graph_path_not_found": 0.11764705882352941,
+  "loo_out_of_schema": 0.11764705882352941,
+  "loo_privacy_restricted": 0.11764705882352941,
+  "loo_insufficient_evidence": 0.1,
+  "proposed": 0.11764705882352941
+ },
+ "shapley": {
+  "INSUFFICIENT_EVIDENCE": -0.019833335178603723,
+  "PRIVACY_RESTRICTED": 0.0,
+  "OUT_OF_SCHEMA": -0.039861346383085514,
+  "GRAPH_PATH_NOT_FOUND": 0.003428696906957781
+ },
+ "leave_one_out": {
+  "INSUFFICIENT_EVIDENCE": -0.017647058823529405,
+  "PRIVACY_RESTRICTED": -0.0,
+  "OUT_OF_SCHEMA": -0.0,
+  "GRAPH_PATH_NOT_FOUND": -0.0
+ },
+ "efficiency_check": {
+  "sum_phi": -0.056265984654731455,
+  "v_full_minus_empty": -0.056265984654731455
+ }
+}

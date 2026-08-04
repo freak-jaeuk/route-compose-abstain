@@ -1,162 +1,162 @@
-# 연구계획서 v2
+# Research Plan v2
 
-v1 대비 변경분과, **데이터 구축 전에 확정해야 하는 두 프로토콜**을 담는다.
-시스템 설계는 [ARCHITECTURE_v1.md](../ARCHITECTURE_v1.md) 에 있으며 여기서 반복하지 않는다.
+This document covers what changed from v1 and **the two protocols that must be fixed before data construction**.
+The system design lives in [ARCHITECTURE_v1.md](../ARCHITECTURE_v1.md) and is not repeated here.
 
 ---
 
-## 1. 제목
+## 1. Title
 
 **Route, Compose, or Abstain: Calibrated Multi-Source Orchestration over SQL, Hybrid Document Retrieval, and Knowledge Graphs**
 
-국문: SQL·비정형 문서·지식 그래프를 통합한 선택적 질의응답 — 다중 소스 오케스트레이션과 보정된 응답 거절
+Korean title: SQL·비정형 문서·지식 그래프를 통합한 선택적 질의응답 — 다중 소스 오케스트레이션과 보정된 응답 거절
 
 ---
 
-## 2. v1에서 바뀐 것
+## 2. What changed from v1
 
-| # | v1 | v2 | 이유 |
+| # | v1 | v2 | Reason |
 |---|---|---|---|
-| C1 | 질문을 경로별로 작정하고 작성 후 그 라벨로 라우터 평가 | 경로를 정하지 않고 원자료에서 작성 → **2인 사후 라벨링 + κ 보고**, 자연발생 질의 20% 이상 | 저자가 만든 문제를 저자 시스템이 푸는 순환논리. RQ1 결과가 통째로 부풀려진다 |
-| C2 | Unanswerable 100개 (구성 미정) | **contrastive twin** 필수 — 답변가능 질문의 최소 변형 | 합성 unanswerable은 표면 단서로 걸러져 거절 성능이 과대평가된다 |
-| C3 | 3주 | Step 0.5→3, **6~7주** (3주 축소본은 §7) | gold 주석만 100시간 규모 |
-| C4 | train 60 / valid 20 / test 20 | **dev 20 / test 80** | 파인튜닝을 하지 않으므로 train 분할이 낭비 |
-| M1 | 베이스라인 10 (ReAct 없음) | **ReAct 자유 도구선택 추가**, 총 8 | "LLM에 도구 다 주면 되지 않나"가 리뷰어 첫 질문이자 현업의 실제 대안 |
-| M2 | 백본 미명시 | **전 조건 동일 백본·온도·시드 고정** | 다른 LLM을 쓰면 비용·정확도 비교가 무의미 |
-| M3 | 통계 검정 없음 | 주지표 사전선언 + bootstrap CI + Holm(family 3) | 지표 30 × 조건 8 × ablation 5 = 다중비교 |
-| M4 | 지표 30+ | 본문 표 3개, 나머지 부록 | 지표가 많으면 스토리가 없다 |
-| M5 | ablation 13 | **5** (Graph·Composite·Verifier·Abstention·라우터) | 검색 내부 비교(BM25/dense/rerank/청킹/α)는 선행연구가 이미 다뤘고 본 주장과 무관 |
-| M6 | RQ2 "graph-only 질문에서 graph가 좋은가" | **전 질의 × 전 스토어 성능 행렬** | 원안은 동어반복. `always_all` 실행 하나로 행렬과 oracle 상한이 추가 비용 없이 나온다 |
-| M7 | KG 스키마만 제시 | 구축 방식 명시 + **트리플 100개 샘플 감사 정확도** 보고 | 재현성 구멍이자 리뷰어 질문 1순위 |
-| M8 | CLARIFY 채점 미정 | 주지표에서는 미응답 처리, **정밀도 별도 보고** + 사유 코드 4종 | 3분기 정책을 2분기 지표로 재려 했다 |
-| M9 | Faithfulness 판정자 미정 | 판정 모델·프롬프트 고정 + **사람 일치율 n≥100** | 없으면 검증 불가 지표 |
-| M10 | 라우터 3종 | **인코더 분류기 추가** (bge-m3 + logistic regression) | 비용 100배 차이. 이기면 실용 기여, 지면 negative result |
-| — | 주지표 AURCC | **AURC** (area under risk–coverage curve) | 통용 명칭 |
+| C1 | Write questions deliberately per route, then evaluate the router against those labels | Write from the raw sources without fixing a route → **post-hoc labeling by 2 annotators + report κ**, at least 20% naturally occurring queries | Circular reasoning: the authors' system solves problems the authors wrote. The RQ1 result is inflated wholesale |
+| C2 | 100 unanswerable items (composition undecided) | **contrastive twin** required — a minimal perturbation of an answerable question | Synthetic unanswerables are filtered out by surface cues, so abstention performance is overestimated |
+| C3 | 3 weeks | Step 0.5→3, **6–7 weeks** (the 3-week reduced version is in §7) | gold annotation alone is on the order of 100 hours |
+| C4 | train 60 / valid 20 / test 20 | **dev 20 / test 80** | no fine-tuning, so a train split is wasted |
+| M1 | 10 baselines (no ReAct) | **add ReAct with free tool choice**, 8 total | "Why not just give the LLM all the tools?" is the first reviewer question and the real-world alternative in practice |
+| M2 | backbone unspecified | **same backbone, temperature, and fixed seed across all conditions** | with different LLMs the cost and accuracy comparison is meaningless |
+| M3 | no statistical testing | pre-declared primary metric + bootstrap CI + Holm (family 3) | 30 metrics × 8 conditions × 5 ablations = multiple comparisons |
+| M4 | 30+ metrics | 3 tables in the main text, the rest in the appendix | many metrics means no story |
+| M5 | 13 ablations | **5** (Graph · Composite · Verifier · Abstention · router) | intra-retrieval comparisons (BM25/dense/rerank/chunking/α) are already covered by prior work and orthogonal to our claim |
+| M6 | RQ2 "is graph good on graph-only questions" | **full query × store performance matrix** | The original is tautological. A single `always_all` run yields both the matrix and the oracle upper bound at no extra cost |
+| M7 | KG schema only | specify the construction method + report **audit accuracy on a 100-triple sample** | a reproducibility hole and the #1 reviewer question |
+| M8 | CLARIFY scoring undecided | counted as no answer in the primary metric, **precision reported separately** + 4 reason codes | we were measuring a 3-way policy with a 2-way metric |
+| M9 | faithfulness judge unspecified | fixed judge model and prompt + **human agreement rate on n≥100** | without it, the metric is unverifiable |
+| M10 | 3 routers | **add an encoder classifier** (bge-m3 + logistic regression) | 100× cost difference. If it wins, a practical contribution; if it loses, a negative result |
+| — | primary metric AURCC | **AURC** (area under risk–coverage curve) | the standard name |
 
 ---
 
-## 3. 확정 필요 ① route 라벨링 프로토콜 (O1)
+## 3. To be finalized ① route labeling protocol (O1)
 
-**되돌릴 수 없는 결정이다.** 질문을 만들기 전에 확정한다.
+**This decision cannot be undone.** It is fixed before any question is written.
 
-### 3.1 작성 단계 (라벨 없이)
+### 3.1 Authoring stage (without labels)
 
-1. 원자료(통계 테이블 스키마 / 법령 조문 / 그래프 관계)를 먼저 펼친다.
-2. 각 자료를 보고 **"이 자료를 근거로 실제 사용자가 물어볼 법한 질문"** 을 쓴다.
-3. 작성자는 이 시점에 SQL/DOCUMENT/GRAPH 중 무엇인지 **적지 않는다.**
-4. 자연발생 질의를 **20% 이상** 섞는다 (공공기관 FAQ·민원 공개분에서 발췌 후 개인정보 제거).
+1. Lay out the raw sources first (statistical table schemas / statute articles / graph relations).
+2. Looking at each source, write **"a question a real user would plausibly ask with this source as evidence."**
+3. At this point the author **does not record** whether it is SQL/DOCUMENT/GRAPH.
+4. Mix in **at least 20%** naturally occurring queries (excerpted from public-agency FAQs and published citizen inquiries, with personal information removed).
 
-### 3.2 라벨링 단계 (별도 인원 2인)
+### 3.2 Labeling stage (2 separate annotators)
 
-- 라벨 집합: `SQL` · `DOCUMENT` · `GRAPH` · `COMPOSITE` · `UNANSWERABLE` · `AMBIGUOUS`
-- 판단 기준 (충돌 시 위 순서로 적용):
-  1. 답이 **테이블 값의 집계**로만 나오면 `SQL`
-  2. 답이 **문서의 서술**로만 나오면 `DOCUMENT`
-  3. 답이 **두 엔티티 사이 관계 경로**를 요구하면 `GRAPH`
-  4. 위 중 둘 이상이 **모두** 있어야 답이 완성되면 `COMPOSITE`
-  5. 스키마·문서·그래프 어디에도 근거가 없으면 `UNANSWERABLE`
-  6. 한정조건(연도·지역·상품)이 없어 답이 갈리면 `AMBIGUOUS`
-- **Cohen κ 보고.** κ < 0.70 이면 기준을 고치고 전량 재라벨링한다.
-- 불일치 항목은 3인째가 조정하되, **조정 전 κ를 논문에 싣는다.**
+- Label set: `SQL` · `DOCUMENT` · `GRAPH` · `COMPOSITE` · `UNANSWERABLE` · `AMBIGUOUS`
+- Decision criteria (apply in the order above on conflict):
+  1. If the answer follows from **an aggregation of table values** alone, `SQL`
+  2. If the answer follows from **statements in a document** alone, `DOCUMENT`
+  3. If the answer requires **a relation path between two entities**, `GRAPH`
+  4. If **two or more** of the above are needed for a complete answer, `COMPOSITE`
+  5. If there is no evidence in the schema, the documents, or the graph, `UNANSWERABLE`
+  6. If the answer diverges because a qualifier (year, region, product) is missing, `AMBIGUOUS`
+- **Report Cohen's κ.** If κ < 0.70, revise the criteria and relabel everything.
+- Disagreements are adjudicated by a 3rd annotator, but **the pre-adjudication κ goes in the paper.**
 
-### 3.3 논문에 싣는 것
+### 3.3 What goes in the paper
 
-κ 값, 불일치율, 불일치가 가장 잦은 라벨 쌍(예상: `GRAPH` ↔ `COMPOSITE`).
-라우터 성능이 인간 일치도 상한에 얼마나 근접했는지 함께 보고한다.
+κ, the disagreement rate, and the label pair that disagrees most often (expected: `GRAPH` ↔ `COMPOSITE`).
+We also report how close router performance comes to the human-agreement ceiling.
 
 ---
 
-## 4. 확정 필요 ② contrastive unanswerable 규칙 (O2)
+## 4. To be finalized ② contrastive unanswerable rules (O2)
 
-답변가능 질문 하나에서 **최소 편집 거리**로 답이 사라지는 쌍을 만든다.
-표면 단서(연도 숫자, "전망" 같은 단어)만 보고 걸러지면 실패다.
+From a single answerable question, build a pair in which the answer disappears at **minimum edit distance**.
+If the pair can be filtered out from surface cues alone (a year number, a word like "전망" (forecast)), it has failed.
 
-| 변형 유형 | 원본 (답변가능) | 쌍 (답변불가) | 걸리는 지점 |
+| Perturbation type | Original (answerable) | Pair (unanswerable) | Where it is caught |
 |---|---|---|---|
-| 집계 단위 이탈 | …**지역별** 보험금 지급액 | …**읍면동별** 보험금 지급액 | 스키마 granularity |
-| 기간 이탈 | **2021~2023년** 지급 추이 | **2030년** 지급 전망 | coverage_years |
-| 컬럼 부재 | 지역별 **지급액** | 지역별 **평균 처리일수** | 컬럼 화이트리스트 |
-| 관계 부재 | 특약이 수정하는 **보장** | 특약이 수정하는 **세율** | 그래프 관계 타입 |
-| 개인정보 | **가입 통계** | **가입자 홍길동의 내역** | PII 차단 |
-| 문서 범위 이탈 | **실손보험** 면책사항 | **해외 여행자보험** 면책사항 (미수집) | 코퍼스 범위 |
+| Aggregation-unit violation | …**지역별** 보험금 지급액 (insurance payouts by region) | …**읍면동별** 보험금 지급액 (by eup/myeon/dong, the smallest administrative unit) | schema granularity |
+| Time-range violation | **2021~2023년** 지급 추이 (payout trend) | **2030년** 지급 전망 (payout forecast) | coverage_years |
+| Missing column | 지역별 **지급액** (payout amount by region) | 지역별 **평균 처리일수** (average processing days by region) | column whitelist |
+| Missing relation | 특약이 수정하는 **보장** (the coverage a rider modifies) | 특약이 수정하는 **세율** (the tax rate a rider modifies) | graph relation type |
+| Personal information | **가입 통계** (enrollment statistics) | **가입자 홍길동의 내역** (the records of subscriber 홍길동, a placeholder name) | PII blocking |
+| Document-scope violation | **실손보험** 면책사항 (indemnity health insurance exclusions) | **해외 여행자보험** 면책사항 (overseas travel insurance exclusions — not collected) | corpus scope |
 
-규칙:
-- 쌍의 편집 거리는 **어절 2개 이하**.
-- 쌍은 같은 분할(dev 또는 test)에 **함께** 넣는다. 갈라지면 대조가 깨진다.
-- `twin_of` 필드로 원본 qid를 기록해 쌍 단위 분석을 가능하게 한다.
-- 목표 비중: unanswerable의 **60% 이상**이 twin. 나머지는 자연발생 답변불가 질의.
+Rules:
+- The edit distance of a pair is **at most 2 eojeol** (whitespace-delimited Korean word units).
+- A pair goes into the same split (dev or test) **together**. If they are separated, the contrast breaks.
+- Record the original qid in the `twin_of` field so that pair-level analysis is possible.
+- Target share: **at least 60%** of unanswerables are twins. The rest are naturally occurring unanswerable queries.
 
-배선 점검용 8문항 예시: [`eval/qa/demo_gold.jsonl`](../eval/qa/demo_gold.jsonl) (`qa_001` ↔ `qa_004`, `qa_007`)
+8-item example for wiring checks: [`eval/qa/demo_gold.jsonl`](../eval/qa/demo_gold.jsonl) (`qa_001` ↔ `qa_004`, `qa_007`)
 
 ---
 
-## 5. 평가셋
+## 5. Evaluation set
 
-| 유형 | 수량 |
+| Type | Count |
 |---|---:|
 | SQL | 80 |
 | Document | 80 |
 | Graph | 60 |
 | Composite | 80 |
 | Ambiguous | 30 |
-| Unanswerable | 70 (twin 40 포함) |
-| **합계** | **400** |
+| Unanswerable | 70 (including 40 twins) |
+| **Total** | **400** |
 
-분할: **dev 80 / test 320.** 임계값·가중치·프롬프트·청킹은 dev에서만 조정, test는 1회 실행.
+Split: **dev 80 / test 320.** Thresholds, weights, prompts, and chunking are tuned on dev only; test is run 1 time.
 
-gold 스키마는 v1과 동일하되 `twin_of`, `route_label_a`, `route_label_b`(라벨러 2인 원본), `gold_abstain_reason` 추가.
+The gold schema is the same as v1, with `twin_of`, `route_label_a`, `route_label_b` (the raw labels from the 2 annotators), and `gold_abstain_reason` added.
 
 ---
 
-## 6. 실험
+## 6. Experiments
 
-### 조건 8종
+### 8 conditions
 `doc_only` · `sql_only` · `graph_only` · `always_all` · `react` · `proposed` · `oracle_route` · `oracle_abstain`
 
-전부 같은 런타임 + config 차이 ([ARCHITECTURE §12](../ARCHITECTURE_v1.md#12-실험-하네스--조건은-config다)).
+All use the same runtime and differ only in config ([ARCHITECTURE §12](../ARCHITECTURE_v1.md#12-experiment-harness--conditions-are-config)).
 
-### Ablation 5종
-Graph 제거 · Composite 제거 · Verifier 제거 · Abstention 제거 · 라우터 4종 비교
+### 5 ablations
+Remove Graph · Remove Composite · Remove Verifier · Remove Abstention · compare the 4 routers
 
-### 지표
-- **주지표: AURC** (사전선언, 1개)
-- 보조 2: 질의당 토큰, p95 지연
-- Holm family = {AURC, 토큰, p95} 3개. 나머지 27개 지표는 부록, 검정 대상 아님.
-- 전 지표 bootstrap 95% CI (B=1000).
+### Metrics
+- **Primary metric: AURC** (pre-declared, 1 metric)
+- 2 secondary: tokens per query, p95 latency
+- Holm family = {AURC, tokens, p95}, 3 members. The remaining 27 metrics are in the appendix and are not tested.
+- Bootstrap 95% CI for every metric (B=1000).
 
-### 예상 결론 (negative 허용)
-"오케스트레이션은 멀티홉·복합 질의에서만 이득. 단일홉은 비용 2배에 정확도 동일."
-제안 방법이 기준선을 못 이겨도 경로별 실패 원인과 risk–coverage 분석을 그대로 보고한다.
+### Expected conclusion (negative allowed)
+"Orchestration pays off only on multi-hop and composite queries. On single-hop it costs 2× for the same accuracy."
+Even if the proposed method fails to beat the baselines, we report the per-route failure causes and the risk–coverage analysis as they are.
 
 ---
 
-## 7. 일정
+## 7. Schedule
 
-| 단계 | 기간 | 산출 |
+| Stage | Duration | Output |
 |---|---|---|
-| Step 0 | 완료 | 아키텍처·trace 스키마·주지표 확정, 배선 점검 |
-| Step 0.5 | 3일 | **본 문서 §3·§4 확정** — 이후 되돌릴 수 없음 |
-| Step 1 | 2주 | 30문항 end-to-end 관통 (실제 SQL·Doc·Graph·Verifier) |
-| Step 2 | 1주 | 400문항 확장, 데모, repo 공개 |
-| Step 3 | 3주 | 조건 8 · ablation 5 · 오류분석 · arXiv v1 |
+| Step 0 | done | architecture, trace schema, and primary metric fixed; wiring check |
+| Step 0.5 | 3 days | **finalize §3 and §4 of this document** — irreversible afterwards |
+| Step 1 | 2 weeks | 30 items end-to-end (real SQL · Doc · Graph · Verifier) |
+| Step 2 | 1 week | expand to 400 items, demo, public repo |
+| Step 3 | 3 weeks | 8 conditions · 5 ablations · error analysis · arXiv v1 |
 
-3주만 가능한 경우 축소본: 문항 200(twin 40 포함) / 조건 4(`doc_only`·`react`·`always_all`·`proposed`) / ablation 3(Graph·Verifier·Abstention) / 주지표 AURC 1개 → arXiv v1 게시 후 확장분을 v2로 갱신.
-
----
-
-## 8. 정직성 원칙 (v1 §19 유지 + 추가)
-
-- MCP·Neo4j·Vector DB 사용 자체를 연구적 신규성으로 주장하지 않는다.
-- Graph가 모든 질문에서 우수하다고 주장하지 않는다.
-- 라우팅이 정확도보다 **비용·지연·오답률 감소**에 더 기여할 가능성을 열어둔다.
-- 제안 방법이 기준선보다 못해도 경로별 실패 원인과 risk–coverage 분석을 보고한다.
-- 공개 데이터만 사용하고 개인 계약 정보·비공개 기업 데이터는 쓰지 않는다.
-- **추가**: 라벨 조정 전 κ를 보고한다. 조정 후 수치만 싣지 않는다.
-- **추가**: 시스템 출력은 보험·금융·법률 자문이 아님을 데모와 논문 모두에 명시한다.
+If only 3 weeks are available, the reduced version: 200 items (including 40 twins) / 4 conditions (`doc_only` · `react` · `always_all` · `proposed`) / 3 ablations (Graph · Verifier · Abstention) / 1 primary metric, AURC → post arXiv v1, then update with the expansion as v2.
 
 ---
 
-## 9. 미결
+## 8. Honesty principles (v1 §19 retained + additions)
 
-O3 KG 구축 방식 · O4 판정자 일치율 · O5 거절 임계값 보정 방식 · O6 한국어 reranker 선정
-— 목록과 처리 시점은 [ARCHITECTURE §16](../ARCHITECTURE_v1.md#16-열린-이슈).
+- We do not claim that using MCP, Neo4j, or a vector DB is in itself a research novelty.
+- We do not claim that Graph is superior on every question.
+- We leave open the possibility that routing contributes more to **cost, latency, and wrong-answer reduction** than to accuracy.
+- Even if the proposed method is worse than the baselines, we report the per-route failure causes and the risk–coverage analysis.
+- We use public data only; no personal contract information and no non-public corporate data.
+- **Added**: we report κ before label adjudication. We do not report only the post-adjudication number.
+- **Added**: both the demo and the paper state explicitly that system outputs are not insurance, financial, or legal advice.
+
+---
+
+## 9. Open items
+
+O3 KG construction method · O4 judge agreement rate · O5 abstention-threshold calibration method · O6 Korean reranker selection
+— the list and when each is handled are in [ARCHITECTURE §16](../ARCHITECTURE_v1.md#16-open-issues).

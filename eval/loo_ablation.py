@@ -67,7 +67,20 @@ def main() -> None:
 
     est = {}
     if EST.exists():
-        for t in json.loads(EST.read_text(encoding="utf-8"))["triggers"]:
+        payload = json.loads(EST.read_text(encoding="utf-8"))
+        # 추정과 실측이 같은 시스템에서 나왔는지 검사한다. 이 표의 의미는 전적으로
+        # "같은 시스템을 두 방법으로 재면 다르다"이므로, 추정이 다른 trace(예: 수정 전
+        # 시스템)에서 왔다면 표는 두 시스템의 차이를 재는 것이 되어 주장이 무효가 된다.
+        # 실제로 그 사고가 한 번 있었고 논문에 실렸다.
+        src = payload.get("trace_dir")
+        want = str(RUNS.relative_to(ROOT))
+        if src != want:
+            sys.exit(f"MISMATCH: 추정은 '{src}', 실측은 '{want}' 에서 나왔다.\n"
+                     f"  같은 trace로 맞춰라:  python eval/trigger_ablation.py {want}")
+        if payload.get("base_answered") != base["answered"]:
+            sys.exit(f"MISMATCH: 추정 기준 answered={payload.get('base_answered')} "
+                     f"≠ 실측 기준 answered={base['answered']} — trigger_ablation.py를 다시 돌려라")
+        for t in payload["triggers"]:
             est[t["reason"]] = t
 
     print("| 트리거 제거 | coverage | risk | Δrisk 실측 | Δrisk 추정 | 추정 오차 |")

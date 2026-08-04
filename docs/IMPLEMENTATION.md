@@ -1,149 +1,149 @@
-# 구현 현황과 기술 스택
+# Implementation Status and Technology Stack
 
-이 문서는 **지금 저장소에서 실제로 동작하는 것**만 다룬다. 설계 의도는 [ARCHITECTURE_v1.md](../ARCHITECTURE_v1.md), 기술 개요는 [TECHNICAL_OVERVIEW.md](TECHNICAL_OVERVIEW.md).
+This document covers **only what actually runs in the repository today**. For design intent see [ARCHITECTURE_v1.md](../ARCHITECTURE_v1.md); for a technical overview see [TECHNICAL_OVERVIEW.md](TECHNICAL_OVERVIEW.md).
 
-- Python **약 2,550줄** (`src/rca` + `scripts` + `eval`)
-- 도메인: **감염병** (질병관리청 발생통계 + 감염병예방법 + 규칙추출 지식그래프)
-- 세 스토어·세 Agent·오케스트레이터·LLM·FastAPI 전부 실제 데이터로 동작
+- **about 2,550 lines** of Python (`src/rca` + `scripts` + `eval`)
+- Domain: **infectious disease** (KDCA incidence statistics + 감염병예방법 (the Infectious Disease Control and Prevention Act) + a rule-extracted knowledge graph)
+- Three stores, three agents, the orchestrator, the LLM, and FastAPI all run on real data
 
 ---
 
-## 1. 무엇이 동작하는가
+## 1. What Works
 
-stub이 아니다. 전부 실제 공개 데이터·실제 검색·실제 LLM으로 end-to-end 관통한다.
+None of this is a stub. Everything runs end-to-end on real public data, real retrieval, and a real LLM.
 
-| 계층 | 상태 | 근거 |
+| Layer | Status | Evidence |
 |---|---|---|
-| 데이터 수집 (질병청 API) | ✅ | 14,226행 (68질병 × 2015~2026 × 18지역), 전국=지역합 정합성 PASS |
-| 조인 허브 | ✅ | 법 88종 ↔ 통계 68종, 99% 매칭 |
-| SQLite 정형 스토어 | ✅ | 이중집계·조인 무결성 실쿼리 검증 |
-| 문서 스토어 (202청크) | ✅ | 감염병예방법·시행령·시행규칙 조문 청킹 |
-| 지식그래프 (213노드·125엣지) | ✅ | 규칙추출 위임엣지, ladybug 2-hop 순회 |
-| SQL Agent | ✅ | NL→QuerySpec→검증→파라미터SQL→읽기전용. 보안 자체점검 통과 |
-| Document Agent | ✅ | BM25(kiwi)+bge-m3+reranker 하이브리드, RRF |
-| Graph Agent | ✅ | Cypher 템플릿 3종, 읽기전용 |
-| 라우터 | ✅ | LLM few-shot + 규칙 폴백, 스모크 4/4 |
-| 오케스트레이터 | ✅ | 라우팅→분해→실행→근거게이트→정책, e2e |
-| 거절 정책 (사유 8종) | ✅ | PRIVACY_RESTRICTED·OUT_OF_SCHEMA·GRAPH_PATH_NOT_FOUND 등 관측 |
-| LLM 백본 | ✅ | vLLM gpt-oss-20b, OpenAI 호환 |
-| trace 계측 | ✅ | 도구 호출 1줄 + `_run` 종결줄, kind(llm/tool) 구분 |
-| FastAPI 데모 | ✅ | POST /query 응답 URL + 단일페이지 UI |
-| 평가 하네스 | ✅ | 60문항 × 거절 ON/OFF, trace→지표 |
+| Data collection (KDCA API) | ✅ | 14,226 rows (68 diseases × 2015~2026 × 18 regions), nationwide = sum-of-regions consistency PASS |
+| Join hub | ✅ | 88 statute disease types ↔ 68 statistics disease types, 99% matched |
+| SQLite structured store | ✅ | Double counting and join integrity verified with real queries |
+| Document store (202 chunks) | ✅ | Article-level chunking of 감염병예방법·시행령·시행규칙 (the Act, its Enforcement Decree and its Enforcement Rules) |
+| Knowledge graph (213 nodes, 125 edges) | ✅ | Rule-extracted delegation edges, 2-hop traversal on ladybug |
+| SQL Agent | ✅ | NL→QuerySpec→validation→parameterized SQL→read-only. Passes its own security self-check |
+| Document Agent | ✅ | BM25(kiwi)+bge-m3+reranker hybrid, RRF |
+| Graph Agent | ✅ | 3 Cypher templates, read-only |
+| Router | ✅ | LLM few-shot + rule fallback, smoke test 4/4 |
+| Orchestrator | ✅ | routing→decomposition→execution→evidence gate→policy, e2e |
+| Abstention policy (8 reason codes) | ✅ | PRIVACY_RESTRICTED, OUT_OF_SCHEMA, GRAPH_PATH_NOT_FOUND, etc. observed |
+| LLM backbone | ✅ | vLLM gpt-oss-20b, OpenAI-compatible |
+| trace instrumentation | ✅ | 1 line per tool call + a `_run` closing line, kind(llm/tool) distinction |
+| FastAPI demo | ✅ | POST /query response URL + single-page UI |
+| Evaluation harness | ✅ | 60 items × abstention ON/OFF, trace→metrics |
 
-미구현(v0.2): MCP 서버(도구 스키마는 계약 형태로 설계), encoder 라우터, verifier 전체, ReAct 베이스라인.
+Not implemented (v0.2): MCP server (the tool schemas are designed in contract form), encoder router, the full verifier, ReAct baseline.
 
 ---
 
-## 2. 코드 지도
+## 2. Code Map
 
 ```
 src/rca/
-├── state.py         RunState·Budget·ToolCall + 사유코드, validate_assignment
-├── trace.py         Tracer (JSONL, 질의 스코프) · read_traces
-├── llm.py           vLLM 클라이언트 (urllib, OpenAI 호환)
-├── router.py        5-way 라우터 (LLM few-shot + 규칙 폴백)
-├── orchestrator.py  파이프라인 — 라우팅·실행·근거게이트·정책·답변생성
-├── api.py           FastAPI 데모
+├── state.py         RunState·Budget·ToolCall + reason codes, validate_assignment
+├── trace.py         Tracer (JSONL, query-scoped) · read_traces
+├── llm.py           vLLM client (urllib, OpenAI-compatible)
+├── router.py        5-way router (LLM few-shot + rule fallback)
+├── orchestrator.py  pipeline — routing, execution, evidence gate, policy, answer generation
+├── api.py           FastAPI demo
 └── tools/
-    ├── sql.py       SQL Agent (보안 경계)
-    ├── docs.py      Document Agent (하이브리드 검색)
-    └── graph.py     Graph Agent (Cypher 템플릿)
+    ├── sql.py       SQL Agent (security boundary)
+    ├── docs.py      Document Agent (hybrid retrieval)
+    └── graph.py     Graph Agent (Cypher templates)
 scripts/
-├── fetch_kdca.py            발생통계 수집
-├── fetch_law.py             법령 3종 수집
-├── build_disease_hub.py     조인 허브
-├── build_sqlite.py          정형 스토어
-├── build_document_chunks.py 문서 청킹
-└── build_graph.py           지식그래프
+├── fetch_kdca.py            collect incidence statistics
+├── fetch_law.py             collect the 3 statutes
+├── build_disease_hub.py     join hub
+├── build_sqlite.py          structured store
+├── build_document_chunks.py document chunking
+└── build_graph.py           knowledge graph
 eval/
-├── qa/gold.jsonl   60문항 (답변가능 44 + 답변불가 16, twin 6)
-├── run_eval.py     2조건 실행
-└── analyze_eval.py trace → 지표
+├── qa/gold.jsonl   60 items (44 answerable + 16 unanswerable, 6 twins)
+├── run_eval.py     runs the 2 conditions
+└── analyze_eval.py trace → metrics
 ```
 
-각 `src/rca/*.py`·`tools/*.py`는 `__main__` 자체 점검을 갖는다. `scripts/*.py`는 실행 시 검증 수치를 출력한다.
+Every `src/rca/*.py` and `tools/*.py` carries a `__main__` self-check. Every `scripts/*.py` prints verification figures when run.
 
 ---
 
-## 3. 핵심 구현 셋
+## 3. Core Implementation Set
 
-### 3.1 계측 우선 (`trace.py`)
+### 3.1 Instrumentation First (`trace.py`)
 
-도구 호출 1회 = JSONL 1줄, 질의 1건 = `_run` 종결줄. 모든 지표가 이 로그에서만 나온다.
-`ok`(도구 실행 성공)와 근거 충분을 구분하고, `cited`(실제 인용)를 검색된 전체 근거와 분리한다.
-`answer_confidence` 연속 점수가 있어야 risk–coverage 곡선(AURC)을 적분할 수 있다.
+1 tool call = 1 JSONL line, 1 query = 1 `_run` closing line. Every metric comes from this log and nowhere else.
+We separate `ok` (the tool executed successfully) from evidence sufficiency, and separate `cited` (actually cited) from the full set of retrieved evidence.
+A continuous `answer_confidence` score has to exist before the risk–coverage curve (AURC) can be integrated.
 
-### 3.2 SQL 보안 (`tools/sql.py`)
+### 3.2 SQL Security (`tools/sql.py`)
 
-사용자 입력이 DB에 닿는 유일한 지점. 축소 불가:
-읽기전용(mode=ro) · SELECT만 코드 생성 · 값 100% 파라미터 바인딩 · 테이블/컬럼/질병/지역/연도 화이트리스트 ·
-개인 판정 질의 차단(집계 질의는 통과) · 전국/기타 집계행을 시도와 못 섞음(이중집계 방지).
-Codex 보안 리뷰 4건 반영, injection·PII·schema-escape·이중집계 자체점검 통과.
+The only point where user input reaches the DB. Nothing here can be cut:
+read-only (mode=ro) · only SELECT is generated · 100% parameter binding of values · whitelists for tables/columns/diseases/regions/years ·
+person-level determination queries blocked (aggregate queries pass) · the `전국`/`기타` (nationwide/other) aggregate rows cannot be mixed with provinces (prevents double counting).
+4 items from the Codex security review were addressed; the injection, PII, schema-escape, and double-counting self-checks pass.
 
-### 3.3 규칙추출 그래프 (`build_graph.py`)
+### 3.3 Rule-Extracted Graph (`build_graph.py`)
 
-그래프를 LLM으로 만들지 않는다. 시행령 본문의 `법\s*제(\d+)조` 위임 패턴을 정규식으로 뽑아
-법 조문과 대조(125엣지, dangling 1 제외). "LLM이 만든 부정확한 그래프" 비판을 차단하고 재현성을 확보한다.
+The graph is not built with an LLM. Delegation patterns matching `법\s*제(\d+)조` in the body of the Enforcement Decree are pulled out with a regex and
+cross-checked against the statute articles (125 edges, 1 dangling excluded). This forecloses the "inaccurate LLM-generated graph" criticism and secures reproducibility.
 
-### 3.4 조건은 config (`orchestrator`·`run_eval`)
+### 3.4 Conditions Are config (`orchestrator`·`run_eval`)
 
-거절 ON/OFF 등 실험 조건이 같은 런타임을 공유한다. `if system == ...` 분기 없이 파라미터로.
+Experimental conditions such as abstention ON/OFF share the same runtime. By parameter, with no `if system == ...` branching.
 
 ---
 
-## 4. 기술 스택 (역할과 함께)
+## 4. Technology Stack (with roles)
 
-| 계층 | 기술 | 왜 |
+| Layer | Technology | Why |
 |---|---|---|
-| 언어·API | Python 3.11 · FastAPI · Pydantic v2 | 잘못된 사유코드는 Literal+validate_assignment에서 즉시 |
-| 오케스트레이션 | Custom state machine | 예산·재시도·거절을 명시 제어. 안 쓴 프레임워크(LangGraph)는 스택에 없음 |
-| 정형 | SQLite (읽기전용) | 임베디드, 서버는 config 한 줄 |
-| 벡터 | Qdrant local mode | 서버 불필요, FastAPI workers=1 |
-| 그래프 | **Ladybug 0.18** (임베디드 openCypher) | Kùzu 상류 아카이브(2025-10) 후속 포크 |
-| 임베딩 | BGE-m3-ko | 한국어 dense (CPU 고정) |
-| 어휘검색 | bm25s + kiwipiepy | 한국어 형태소 토크나이저 필수 |
-| 리랭커 | bge-reranker-v2-m3-ko | 한국어 cross-encoder (CPU) |
-| LLM | vLLM gpt-oss-20b (OpenAI 호환) | 로컬 서빙, 코드가 로컬/API 무관 |
-| 계측 | JSONL + 순수 파이썬 | append-only, git diff, 소규모에 DB 불필요 |
+| Language & API | Python 3.11 · FastAPI · Pydantic v2 | a wrong reason code fails immediately at Literal+validate_assignment |
+| Orchestration | Custom state machine | Explicit control of budget, retries, and abstention. Frameworks we do not use (LangGraph) are not in the stack |
+| Structured | SQLite (read-only) | Embedded; a server is one config line |
+| Vector | Qdrant local mode | No server needed, FastAPI workers=1 |
+| Graph | **Ladybug 0.18** (embedded openCypher) | Successor fork after Kùzu was archived upstream (2025-10) |
+| Embedding | BGE-m3-ko | Korean dense (pinned to CPU) |
+| Lexical retrieval | bm25s + kiwipiepy | a Korean morphological tokenizer is mandatory |
+| Reranker | bge-reranker-v2-m3-ko | Korean cross-encoder (CPU) |
+| LLM | vLLM gpt-oss-20b (OpenAI-compatible) | local serving; the code is agnostic to local vs. API |
+| Instrumentation | JSONL + pure Python | append-only, git diff, no DB needed at this scale |
 
-### 그래프 백엔드 정정
+### Graph Backend Correction
 
-초기 문서는 "Kùzu↔Neo4j openCypher라 쿼리 문자열 공유, 교체 비용 커넥션 함수 2개"라고 적었으나 둘 다 사실이 아니었다(Kùzu 아카이브 → Ladybug, 그리고 DDL·최단경로 문법·walk/trail 차이로 쿼리 미이식). Ladybug 하나로 고정, Neo4j는 미검증 표기. [ADR-1](../ARCHITECTURE_v1.md#7-데이터-계층) 참조.
-
----
-
-## 5. 개발 방식 — 작성 → 리뷰 → 수정
-
-코드마다 별도 리뷰어(Codex)를 돌렸다. SQL Agent 보안 리뷰에서 잡힌 실제 결함:
-run() 화이트리스트 우회, regions 이중집계, 폭주, PII 호칭 없는 케이스 — 전부 반영.
-계측 계층은 3라운드 리뷰로 "실행은 되는데 측정이 틀린" 부류(AURC 연속점수 부재, step 오귀속, 동점 처리)를 잡았다.
-리뷰를 기계적으로 수용하지 않은 사례도 남겼다(`ok=False` 회귀 지적 → 정의 명시로 대체).
+Earlier documents stated that "Kùzu and Neo4j are both openCypher, so query strings are shared and the cost of swapping is two connection functions", but neither was true (Kùzu was archived → Ladybug, and the queries did not port because of DDL, shortest-path syntax, and walk/trail differences). We have settled on Ladybug alone; Neo4j is marked as unverified. See [ADR-1](../ARCHITECTURE_v1.md#7-data-layer).
 
 ---
 
-## 6. 실행
+## 5. Development Process — Write → Review → Fix
+
+A separate reviewer (Codex) was run over each piece of code. Real defects caught in the SQL Agent security review:
+whitelist bypass in run(), `regions` double counting, runaway execution, PII cases with no honorific — all addressed.
+The instrumentation layer went through 3 review rounds, catching the "it runs, but the measurement is wrong" class of bug (no continuous score for AURC, step misattribution, tie handling).
+We also left in place cases where review was not accepted mechanically (a claimed `ok=False` regression → replaced by making the definition explicit).
+
+---
+
+## 6. Running
 
 ```bash
 pip install -r requirements.txt
-# 데이터 구성 → 데모 → 평가: README '실행' 참조
+# data build → demo → evaluation: see 'Running' in the README
 PYTHONPATH=src uvicorn rca.api:app --port 8000 --workers 1
 ```
 
-e2e 확인:
+e2e check:
 ```
-"2023 시도별 수두"  → SQL   → 충북7505·서울3135··· (실데이터 + LLM 답변)
-"제2급 신고기한"    → DOC   → "24시간 이내"
-"제8조의2 위임"     → GRAPH → 시행령 제1조의3/4/5 (2-hop)
-"김철수 확진 여부"  → PRIVACY_RESTRICTED
-"2030 수두 전망"    → ABSTAIN
+"2023 시도별 수두"  → SQL   → 충북7505·서울3135··· (varicella by province; real data + LLM answer)
+"제2급 신고기한"    → DOC   → "24시간 이내"   (Class-2 reporting deadline → "within 24 hours")
+"제8조의2 위임"     → GRAPH → 시행령 제1조의3/4/5 (delegation articles of the Enforcement Decree; 2-hop)
+"김철수 확진 여부"  → PRIVACY_RESTRICTED   (is a named individual confirmed positive?)
+"2030 수두 전망"    → ABSTAIN              (varicella forecast for a future year)
 ```
 
 ---
 
-## 7. 한계 (정직하게)
+## 7. Limitations (honestly)
 
-- 계획형 오케스트레이션이지 자율 multi-agent가 아니다 (ReAct는 v0.2 베이스라인).
-- 그래프는 위임 엣지 위주, 조문 내부 인용은 오탐 커서 제외.
-- 평가는 라우팅·거절 지표 중심. 답변 내용 채점(EM/F1·수동)은 별도.
-- 도메인 하나로 도메인 독립성을 "주장"하며, 두 번째 도메인 실증은 v0.2.
-- LLM 답변생성이 공유 GPU에서 느림(~20초/건). 데모는 사전 캐시·영상 병행 권장.
+- This is planned orchestration, not autonomous multi-agent (ReAct is the v0.2 baseline).
+- The graph is mostly delegation edges; in-article citations were excluded because false positives were too high.
+- Evaluation centers on routing and abstention metrics. Scoring the answer content (EM/F1, manual) is separate.
+- Domain independence is "claimed" from a single domain; empirical validation on a second domain is v0.2.
+- LLM answer generation is slow on the shared GPU (~20 s/item). For demos, pre-caching plus a parallel video recording is recommended.

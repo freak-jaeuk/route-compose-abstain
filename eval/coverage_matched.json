@@ -6,10 +6,25 @@
  "risk_off_confidence_topk": 0.058823529411764705,
  "risk_off_full_coverage": 0.26666666666666666,
  "risk_random_rejection": {
-  "mean": 0.26742647058823554,
+  "mean": 0.2663235294117656,
   "ci95": [
    0.17647058823529413,
    0.35294117647058826
   ]
+ },
+ "tie_break": {
+  "boundary_confidence": 0.6,
+  "n_above": 13,
+  "n_tied": 31,
+  "n_needed_from_ties": 21,
+  "unanswerable_among_ties": 4,
+  "risk_best_case": 0.0,
+  "risk_worst_case": 0.11764705882352941,
+  "risk_random_tiebreak_mean": 0.07950000000000258,
+  "risk_random_tiebreak_ci95": [
+   0.029411764705882353,
+   0.11764705882352941
+  ],
+  "frac_not_better_than_policy": 0.1905
  }
 }

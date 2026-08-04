@@ -1,126 +1,186 @@
-# 평가 결과
+# Evaluation results
 
-감염병 도메인 60문항(답변가능 44 + 답변불가 16, contrastive twin 6),
-**같은 백본·같은 검색·같은 라우터**로 거절 정책만 바꾼 6개 조건.
+60 items in the infectious disease domain (44 answerable + 16 unanswerable, 6 contrastive twins),
+across 6 conditions that vary only the abstention policy under the **same backbone, same retrieval, same router**.
 
-재현:
+Reproduce:
 ```bash
-python eval/run_eval.py            # 6조건 (또는 --only <조건>)
-python eval/analyze_eval.py        # 주지표
-python eval/bootstrap_ci.py        # 신뢰구간
-python eval/coverage_matched.py    # 커버리지 맞춘 비교
-python eval/loo_ablation.py        # 트리거 실측 ablation
-python eval/refusal_causes.py      # 오거절 근인 분류
+python eval/run_eval.py                # 6 conditions (or --only <condition>)
+python eval/analyze_eval.py            # headline metrics
+python eval/bootstrap_ci.py            # confidence intervals
+python eval/coverage_matched.py        # coverage-matched comparison + tie-break range
+python eval/trigger_ablation.py        # log-based counterfactual estimate
+python eval/loo_ablation.py            # measured leave-one-trigger-out
+python eval/shapley.py                 # exact Shapley over all 16 trigger subsets
+python eval/confidence_sensitivity.py  # do the results survive other refusal constants?
+python eval/refusal_causes.py          # root-cause classification of false refusals
 ```
 
-## 1. 거절 ON/OFF
+## 1. Abstention ON/OFF
 
-| 지표 | 거절 ON [95% CI] | 거절 OFF [95% CI] | 차이 [95% CI] |
+| Metric | Abstention ON [95% CI] | Abstention OFF [95% CI] | Difference [95% CI] |
 |---|---|---|---|
 | coverage | 0.567 [0.43, 0.68] | 1.000 | −0.433 [−0.567, −0.317] * |
 | **risk** | **0.118** [0.03, 0.24] | 0.267 [0.15, 0.38] | **−0.149 [−0.262, −0.048]** * |
 | **AURC↓** | 0.149 [0.07, 0.26] | **0.118** [0.05, 0.21] | **+0.031 [+0.001, +0.072]** * |
 | **AUROC↑** | 0.747 [0.61, 0.87] | **0.866** [0.77, 0.95] | **−0.119 [−0.213, −0.041]** * |
-| 거절 정밀도 | 0.462 [0.27, 0.67] | — | — |
-| 거절 재현율 | 0.750 [0.52, 0.94] | — | — |
+| abstention precision | 0.462 [0.27, 0.67] | — | — |
+| abstention recall | 0.750 [0.52, 0.94] | — | — |
 | route macro-F1 | 0.736 | 0.655 | — |
 | selective accuracy | 0.778→0.824 | 0.667 | — |
 
-`*` = 차이의 95% paired-bootstrap CI(B=10,000)가 0을 포함하지 않음.
-`risk` = answerability risk(답한 것 중 답변불가 비율), 라우팅 무관.
+`*` = the 95% paired-bootstrap CI of the difference (B=10,000) does not include 0.
+`risk` = answerability risk (the fraction of unanswerable items among those answered), independent of routing.
 
-**동작점에서는 이기고, 순위에서는 진다.** 거절은 risk를 0.267→0.118로 낮추지만
-AURC는 나빠지고(+0.031) AUROC도 나빠진다(−0.119). 두 지표가 독립적으로 같은 방향을 가리킨다.
+**It wins at the operating point and loses at ranking.** Abstention lowers risk from 0.267→0.118, but
+AURC gets worse (+0.031) and so does AUROC (−0.119). The two metrics point the same way independently.
+Of the two we treat AUROC as primary: the AURC interval reaches +0.001 at its lower end and
+would not survive correction for the 7 comparisons reported here (we apply none, and report
+intervals descriptively).
 
-## 2. 커버리지를 맞추면 — 스칼라 임계값에 진다
+### This is not an artefact of the hand-picked refusal constants (`confidence_sensitivity.py`)
 
-커버리지 0.567(34/60)로 통일한 비교:
+26 of the 60 confidence values are constants we chose (privacy 0.02, execution gate 0.10,
+router 0.25), so the obvious objection is that the ordering result was manufactured by those
+three numbers. Re-scoring the same traces says otherwise:
 
-| 답할 것을 고르는 방법 | risk |
+| Perturbation | AURC worse than OFF | AUROC worse than OFF |
+|---|---|---|
+| all 6 reassignments of the 3 constants | **6/6** | **6/6** |
+| 1000 draws, each constant ~ U[0, 0.5) | **100%** | **100%** |
+
+Ranges over the random draws: AURC [0.144, 0.160] vs 0.118 for OFF; AUROC [0.702, 0.770] vs 0.866.
+**No assignment of refusal constants recovers the OFF condition's ordering.** The result comes from
+*which* queries get refused, not from what score they are given.
+
+## 2. Once coverage is matched — it loses to a scalar threshold
+
+Comparison with coverage held fixed at 0.567 (34/60):
+
+| How the answered set is chosen | risk |
 |---|---|
-| 거절 정책 (사유 8종) | 0.118 |
-| **거절 OFF의 신뢰도 상위 34개** | **0.059** |
-| 무작위 기각 (B=2000) | 0.267 [0.176, 0.353] |
+| abstention policy (8 reason codes) | 0.118 (4/34) |
+| **most confident 34 with abstention OFF** | **0.080** [0.029, 0.118] |
+| random rejection (B=2000) | 0.267 [0.176, 0.353] |
 
-정책은 무작위보다 낫지만 **단일 신뢰도 임계값의 절반 성능**이다. §1의 AURC·AUROC 결과와 일관된다.
-즉 사유 8종 정책의 가치는 위험 감소량이 아니다.
+⚠️ **"top 34 by confidence" is not a single set.** Confidence takes only 6 values, so 31 of the
+60 queries tie at the boundary (0.6) and 21 of the 34 slots must be filled out of that tie.
+Risk ranges from **0.000 to 0.118** across tie-breaks, averaging 0.080; in **19%** of tie-breaks
+the threshold does no better than the policy. One deterministic tie-break (sort by qid) gives
+0.059 — the 39th percentile of that distribution, i.e. an artefact of an arbitrary choice.
+We report the distribution instead.
 
-## 3. 트리거 기여도 — 추정은 체계적으로 틀린다
+The policy beats random, so it uses signal. But at matched coverage the 8 reason codes buy
+**no risk advantage** over a threshold on a single scalar. Consistent with §1.
 
-`trigger_ablation.py`의 로그 기반 counterfactual과 `loo_ablation.py`의 실제 재실행 비교:
+## 3. Trigger contribution — three methods, three answers
 
-| 트리거 제거 | Δrisk 실측 | Δrisk 추정 | 오차 |
-|---|---|---|---|
-| evidence gate | **−0.018** | +0.049 | +0.067 (**부호 반대**) |
-| privacy screen | **0.000** | +0.071 | +0.071 (추정 최대 기여자) |
-| schema-range check | **0.000** | +0.023 | +0.023 |
-| graph path check | **0.000** | −0.009 | −0.009 |
+All columns give the effect on risk of **enabling** the trigger; negative = lowers risk.
+All three are computed from the same traces (`eval/runs`) — mixing pre- and post-repair
+traces here silently compares two different systems, so `loo_ablation.py` now refuses to run
+when the estimate came from a different trace directory.
 
-**4개 트리거 전부에서 추정이 실측과 어긋났다.** 원인은 트리거가 독립적이지 않다는 것:
+| Trigger | n_T | u_T | Estimated | Leave-one-out | **Shapley** |
+|---|---|---|---|---|---|
+| evidence gate | 7 | 1 | −0.004 | +0.018 | −0.020 |
+| privacy screen | 6 | 4 | −0.082 | 0.000 | 0.000 |
+| schema-range check | 3 | 3 | −0.072 | 0.000 | **−0.040** |
+| graph path check | 2 | 0 | +0.007 | 0.000 | +0.003 |
+| | | | | | Σ = −0.056 |
 
-| 트리거 제거 | 그 질의들이 어떻게 되나 |
+**All three methods disagree on every row.** The log-based estimate errs on all 4 and reverses
+sign on the evidence gate. Leave-one-out then reports exactly 0.000 for three triggers — not
+because they do nothing, but because the triggers are not independent:
+
+| Trigger removed | What happens to those queries |
 |---|---|
-| `PRIVACY_RESTRICTED` 6건 | **전부** `LOW_ROUTER_CONFIDENCE`로 거절 |
-| `OUT_OF_SCHEMA` 3건 | **전부** `INSUFFICIENT_EVIDENCE`로 거절 |
-| `GRAPH_PATH_NOT_FOUND` 2건 | **전부** `INSUFFICIENT_EVIDENCE`로 거절 |
+| `PRIVACY_RESTRICTED`, 6 items | **all** abstained under `LOW_ROUTER_CONFIDENCE` |
+| `OUT_OF_SCHEMA`, 3 items | **all** abstained under `INSUFFICIENT_EVIDENCE` |
+| `GRAPH_PATH_NOT_FOUND`, 2 items | **all** abstained under `INSUFFICIENT_EVIDENCE` |
 
-트리거를 꺼도 질의는 여전히 거절된다 — 다른 사유로. counterfactual은 "트리거를 끄면 그 질의가
-답변된다"고 가정하지만 실제로는 **캐스케이드**한다.
+Turning a trigger off does not stop the query from being abstained — it only changes the reason. The counterfactual assumes that
+"turning the trigger off makes the query answered", but what actually happens is a **cascade**.
 
-`evidence gate`만 예외다: 제거하면 7건 중 6건이 실제로 ANSWER가 된다(나머지 1건은 `OUT_OF_SCHEMA`).
-그래서 이 트리거만 측정 가능한 기여를 갖는다 — **하류에서 아무도 받지 않을 때만 기여도가 측정된다.**
+`evidence gate` is the sole exception: removing it turns 6 of the 7 items into an actual ANSWER (the remaining 1 becomes `OUT_OF_SCHEMA`).
+That is why only this trigger has a non-zero leave-one-out effect — **leave-one-out measures a contribution only when nothing downstream catches the query.**
 
-그리고 그 측정값은 음수다(−0.018): 끄면 coverage 0.567→0.667로 오르면서 risk는 0.118→0.100으로
-내려간다. 풀려난 6건이 대부분 답변가능이었다는 뜻이고, 이 트리거는 실제로 **손해**다.
+### Shapley recovers what leave-one-out erased (`shapley.py`)
 
-## 4. 사유 코드는 어느 게이트가 발화했는지만 말한다
+Only 4 triggers, so the full lattice is 2⁴ = 16 configurations = 960 runs (~5s each). Exact, no approximation.
+Efficiency axiom holds: Σφ = v(N) − v(∅) = 0.118 − 0.174 = −0.056.
 
-오거절의 **근인**을 trace에서 분류하면(`refusal_causes.py`), 찍힌 사유와 실제 원인이 다르다:
+The schema-range check carries **71% of the total risk reduction** while leave-one-out scores it 0.000.
+Its marginal effect depends entirely on the coalition:
 
-| 찍힌 사유 | 실제 근인 |
+| Coalition it is added to | risk before → after | Δ |
+|---|---|---|
+| nothing | 0.174 → 0.095 | **−0.079** |
+| evidence gate only | 0.118 → 0.118 | 0.000 |
+| the other three | 0.118 → 0.118 | 0.000 |
+
+Leave-one-out only ever sees the last row. The privacy screen is 0.000 in *every* coalition
+(genuinely inert, not masked); the graph path check is slightly harmful. Leave-one-out reports
+all three situations identically as 0.000.
+
+### The shipped configuration is dominated
+
+| Configuration | coverage | risk | answered | errors |
+|---|---|---|---|---|
+| all 4 triggers (shipped) | 0.567 | 0.118 | 34 | 4 |
+| **schema-range check alone** | **0.700** | **0.095** | **42** | **4** |
+
+Better on both axes — 8 more answers, same number of errors. Three of the four triggers buy
+nothing here and cost coverage. One-at-a-time ablation cannot find this: the comparison that
+reveals it is between two configurations leave-one-out never visits.
+
+## 4. A reason code tells you only which gate fired
+
+Classifying the **root cause** of each false refusal from the traces (`refusal_causes.py`), the logged reason differs from the actual cause:
+
+| Logged reason | Actual root cause |
 |---|---|
 | `INSUFFICIENT_EVIDENCE` | composite_partial 5 · zero_count 1 |
 | `LOW_ROUTER_CONFIDENCE` | router_no_match 4 |
 | `GRAPH_PATH_NOT_FOUND` | router_wrong_path 2 |
 | `PRIVACY_RESTRICTED` | policy_overmatch 2 |
 
-**검색 리콜 실패는 0건.** `INSUFFICIENT_EVIDENCE` 6건 중 5건은 COMPOSITE 첫 leg이
-성공한 뒤 둘째 leg에서 멈춘 경우이고, `GRAPH_PATH_NOT_FOUND` 2건은 애초에 잘못된 경로로
-라우팅된 질의다. 사유 코드는 "어느 게이트가 발화했는가"를 말하지
-"왜 그 게이트에 도달했는가"를 말하지 않는다.
+**0 retrieval-recall failures.** 5 of the 6 `INSUFFICIENT_EVIDENCE` items are cases where the first leg of a COMPOSITE
+succeeded and the second leg stalled, and the 2 `GRAPH_PATH_NOT_FOUND` items are queries that were routed down the wrong
+path to begin with. A reason code tells you "which gate fired", not
+"why the query reached that gate".
 
-## 5. 그럼에도: 진단이 실제로 시스템을 고쳤다
+## 5. Even so: the diagnosis did fix the system
 
-위 분석으로 결함 2개를 찾아 수정했고, 재실행 결과가 개선됐다.
+The analysis above found 2 defects, which we fixed, and the re-run results improved.
 
-| 지표 | 수정 전 | 수정 후 |
+| Metric | Before fix | After fix |
 |---|---|---|
 | risk | 0.167 | **0.118** |
-| 거절 재현율 | 0.625 | **0.750** |
-| 거절 정밀도 | 0.417 | **0.462** |
+| abstention recall | 0.625 | **0.750** |
+| abstention precision | 0.417 | **0.462** |
 | AURC | 0.175 | **0.149** |
 | selective accuracy | 0.778 | **0.824** |
 
-수정한 결함:
-1. **엔티티 해석 실패가 조용히 전체 집계로 흘렀다.** `"2023년 시도별 화성인 감염병 발생 건수"`에
-   16행을 confidence 0.6으로 답했다. 질병명을 지목했는데 스키마에 없으면 `OUT_OF_SCHEMA`로 보낸다.
-2. **라우터 무매칭 폴백을 `INSUFFICIENT_EVIDENCE`로 찍었다.** 15건 중 8건이 검색기를
-   호출조차 하지 않은 경우였다. `LOW_ROUTER_CONFIDENCE`로 분리했다.
+The defects fixed:
+1. **Entity-resolution failures silently fell through to a full aggregate.** `"2023년 시도별 화성인 감염병 발생 건수"`
+   (2023 per-province case counts for "Martian disease" — a disease that does not exist in the schema) was answered with 16 rows at confidence 0.6. When a query names a disease that is not in the schema, it is now sent to `OUT_OF_SCHEMA`.
+2. **The router's no-match fallback was logged as `INSUFFICIENT_EVIDENCE`.** In 8 of the 15 items the retriever was
+   never even called. These are now split out as `LOW_ROUTER_CONFIDENCE`.
 
-둘 다 스칼라 신뢰도만 로깅했다면 보이지 않았을 결함이다.
+Neither defect would have been visible if only a scalar confidence had been logged.
 
-## 정직한 한계
+## Honest limitations
 
-1. **표본이 작다.** 60문항·단일 도메인·단일 작성자, IAA 없음.
-2. **답변 내용을 채점하지 않는다.** 정답 정의는 라우팅 일치 또는 거절 적절성이며,
-   생성 문장의 사실성은 어느 쪽에도 없다. 평가는 `generate=False`, `use_llm=False`로 실행했다.
-3. **confidence가 모델 산출이 아니다.** 답변 시 `min(0.9, 0.5+0.1·|evidence|)`, 거절 시 사유별 상수다.
-   60문항에서 서로 다른 값이 6개뿐이라 AURC는 이 상수들의 상대 순서에 민감하다.
-4. **거절 OFF는 정책 거절까지 끈 실험 통제**이며 배포 설정이 아니다.
-5. **라우터는 규칙 기반**이며 스키마에서 사전 고정했다(평가 문항에 맞춰 튜닝하지 않음).
+1. **The sample is small.** 60 items, a single domain, a single author, no IAA.
+2. **Answer content is not graded.** Correctness is defined as routing match or appropriateness of abstention;
+   the factuality of the generated text enters neither. The evaluation was run with `generate=False`, `use_llm=False`.
+3. **confidence is not a model output.** When answering it is `min(0.9, 0.5+0.1·|evidence|)`; when abstaining it is a per-reason constant.
+   Across the 60 items there are only 6 distinct values, so AURC is sensitive to the relative order of these constants.
+4. **Abstention OFF is an experimental control that turns off even the policy abstentions**, not a deployment setting.
+5. **The router is rule-based** and was fixed in advance from the schema (not tuned to the evaluation items).
 
-## 재현성
+## Reproducibility
 
-검색·리랭킹은 `RCA_DEVICE`로 CPU/GPU 선택(추론 결정론적, 결과 동일) ·
-temperature 0 · seed 0 · 라우팅 규칙 기반. trace JSONL 6개 파일이 저장소에 포함되며,
-모든 지표가 이 로그에서만 유도된다. 분석 스크립트는 문항 수가 60이 아니면 실행을 거부한다.
+Retrieval and reranking select CPU/GPU via `RCA_DEVICE` (inference is deterministic, results identical) ·
+temperature 0 · seed 0 · rule-based routing. The 6 trace JSONL files are included in the repository, and
+every metric is derived from these logs alone. The analysis scripts refuse to run if the item count is not 60.

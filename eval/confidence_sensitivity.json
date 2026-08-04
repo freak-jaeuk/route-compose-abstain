@@ -1,0 +1,97 @@
+{
+ "off": {
+  "aurc": 0.11808080808080805,
+  "auroc": 0.8664772727272727
+ },
+ "shipped": {
+  "assignment": {
+   "privacy": 0.02,
+   "gate": 0.1,
+   "router": 0.25
+  },
+  "aurc": 0.14944911297852484,
+  "auroc": 0.7471590909090909
+ },
+ "permutations": [
+  {
+   "assignment": {
+    "privacy": 0.02,
+    "gate": 0.1,
+    "router": 0.25
+   },
+   "aurc": 0.14944911297852484,
+   "auroc": 0.7471590909090909,
+   "aurc_worse": true,
+   "auroc_worse": true
+  },
+  {
+   "assignment": {
+    "privacy": 0.02,
+    "gate": 0.25,
+    "router": 0.1
+   },
+   "aurc": 0.14402008146253673,
+   "auroc": 0.7698863636363636,
+   "aurc_worse": true,
+   "auroc_worse": true
+  },
+  {
+   "assignment": {
+    "privacy": 0.1,
+    "gate": 0.02,
+    "router": 0.25
+   },
+   "aurc": 0.15667133520074705,
+   "auroc": 0.7130681818181818,
+   "aurc_worse": true,
+   "auroc_worse": true
+  },
+  {
+   "assignment": {
+    "privacy": 0.1,
+    "gate": 0.25,
+    "router": 0.02
+   },
+   "aurc": 0.14635626379871908,
+   "auroc": 0.7585227272727273,
+   "aurc_worse": true,
+   "auroc_worse": true
+  },
+  {
+   "assignment": {
+    "privacy": 0.25,
+    "gate": 0.02,
+    "router": 0.1
+   },
+   "aurc": 0.15960784313725498,
+   "auroc": 0.7017045454545454,
+   "aurc_worse": true,
+   "auroc_worse": true
+  },
+  {
+   "assignment": {
+    "privacy": 0.25,
+    "gate": 0.1,
+    "router": 0.02
+   },
+   "aurc": 0.15465057817999003,
+   "auroc": 0.7244318181818182,
+   "aurc_worse": true,
+   "auroc_worse": true
+  }
+ ],
+ "random": {
+  "B": 1000,
+  "aurc_worse_frac": 1.0,
+  "auroc_worse_frac": 1.0,
+  "both_worse_frac": 1.0,
+  "aurc_range": [
+   0.14402008146253673,
+   0.15960784313725498
+  ],
+  "auroc_range": [
+   0.7017045454545454,
+   0.7698863636363636
+  ]
+ }
+}

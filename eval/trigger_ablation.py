@@ -24,7 +24,7 @@ from rca.trace import read_traces  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD = ROOT / "eval/qa/gold.jsonl"
-RUNS = ROOT / "eval/runs"
+RUNS = ROOT / (sys.argv[1] if len(sys.argv) > 1 else "eval/runs")
 OUT = ROOT / "eval/trigger_ablation.json"
 
 # 사유 코드 → 논문에서 부를 트리거 이름
@@ -86,16 +86,26 @@ def main() -> None:
             "risk_delta": risk(cf_answered) - base_risk,
         })
 
-    payload = {"n": n, "base_coverage": base_cov, "base_risk": base_risk, "triggers": results}
+    payload = {"n": n, "trace_dir": str(RUNS.relative_to(ROOT)),
+               "base_answered": len(answered),
+               "base_wrong": sum(not gold[r["qid"]]["answerable"] for r in answered),
+               "base_coverage": base_cov, "base_risk": base_risk, "triggers": results}
     OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    print(f"기준(전 트리거 ON): coverage {base_cov:.3f}, risk {base_risk:.3f}  (n={n})\n")
-    print("| 트리거 제거 | 거절수 | 오답화 | 오거절회복 | coverage | risk | Δrisk |")
+    # 어느 trace에서 나온 추정인지 항상 찍는다. 이 값을 실측(LOO 재실행)과 나란히 놓을 때
+    # 두 열이 같은 시스템에서 나왔는지가 비교의 전제인데, 그게 눈에 보이지 않으면
+    # 수정 전 trace의 추정치와 수정 후의 실측치를 대조하는 사고가 조용히 일어난다.
+    print(f"trace: {payload['trace_dir']}")
+    print(f"기준(전 트리거 ON): coverage {base_cov:.3f} ({len(answered)}/{n}), "
+          f"risk {base_risk:.3f} ({payload['base_wrong']}/{len(answered)})\n")
+    print("| 트리거 제거 | n_T | u_T(오답화) | 오거절회복 | coverage | risk | Δrisk |")
     print("|---|---|---|---|---|---|---|")
     for t in results:
         print(f"| {t['trigger']} | {t['n']} | {t['would_be_wrong']} | {t['would_be_recovered']} | "
               f"{t['cf_coverage']:.3f} | {t['cf_risk']:.3f} | {t['risk_delta']:+.3f} |")
-    print(f"\n→ {OUT.relative_to(ROOT)}")
+    print(f"\n추정식: risk_T = ({payload['base_wrong']} + u_T) / ({len(answered)} + n_T), "
+          f"Δ = risk_T − {base_risk:.4f}")
+    print(f"→ {OUT.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
