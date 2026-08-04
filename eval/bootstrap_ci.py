@@ -163,7 +163,11 @@ def main() -> None:
             draws["no_abstain"][k].append(m_off[k])
             diffs[k].append(m_on[k] - m_off[k])
 
-    payload = {"n": n, "B": args.B, "point": point, "ci": {}, "diff": {}}
+    # 변형 실행이 표준 산출물을 덮어쓰지 않게 한다. 논문 주 표는 비층화 값이므로,
+    # --stratify 결과가 bootstrap_ci.json 을 대체하면 공개 로그와 논문이 어긋난다.
+    out = OUT if not args.stratify else OUT.with_name("bootstrap_ci_stratified.json")
+    payload = {"n": n, "B": args.B, "stratified": args.stratify,
+               "point": point, "ci": {}, "diff": {}}
     print("| 지표 | 거절 ON [95% CI] | 거절 OFF [95% CI] | 차이 [95% CI] |")
     print("|---|---|---|---|")
     for k in keys:
@@ -178,9 +182,9 @@ def main() -> None:
               f"| {point['no_abstain'][k]:.3f} [{lo_off:.3f}, {hi_off:.3f}] "
               f"| {d:+.3f} [{d_lo:+.3f}, {d_hi:+.3f}]{sig} |")
 
-    OUT.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
     print("\n* = 차이의 95% CI가 0을 포함하지 않음")
-    print(f"→ {OUT.relative_to(ROOT)}")
+    print(f"→ {out.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":
