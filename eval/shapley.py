@@ -38,22 +38,48 @@ GOLD = ROOT / "eval/qa/gold.jsonl"
 RUNS = ROOT / "eval/runs"
 OUT = ROOT / "eval/shapley.json"
 
-# 분해 대상 4개. 순서 고정 — 조건 이름이 이 순서에 의존한다.
-PLAYERS = ["INSUFFICIENT_EVIDENCE", "PRIVACY_RESTRICTED",
-           "OUT_OF_SCHEMA", "GRAPH_PATH_NOT_FOUND"]
+# 분해 대상. 순서 고정 — 조건 이름이 이 순서에 의존한다.
+#
+# game=4 는 실행 게이트 4개만 분해한다. router confidence 게이트가 항상 켜져 있어서
+# privacy 질의를 대신 잡기 때문에 privacy 의 φ가 인위적으로 0이 되고, v(∅)=0.174 도
+# OFF 조건(0.267)과 일치하지 않는다 — 게임 밖 플레이어가 남아 있다는 뜻이다.
+#
+# game=5 는 이 벤치마크에서 실제로 발화하는 5개를 전부 넣는다. 나머지 3개
+# (SQL_EXECUTION_FAILURE, SOURCE_CONFLICT, BUDGET_EXCEEDED)는 60문항 중 한 번도
+# 발화하지 않으므로 켜 두든 끄든 v(S)가 같다. 따라서 v(∅)는 Abstention OFF 와
+# 같아야 하고 Σφ 는 논문이 보고하는 위험 감소 전량이어야 한다 — 둘 다 실행 후 검증한다.
+_GAMES = {
+    4: (["INSUFFICIENT_EVIDENCE", "PRIVACY_RESTRICTED",
+         "OUT_OF_SCHEMA", "GRAPH_PATH_NOT_FOUND"], ""),
+    5: (["INSUFFICIENT_EVIDENCE", "PRIVACY_RESTRICTED",
+         "OUT_OF_SCHEMA", "GRAPH_PATH_NOT_FOUND", "LOW_ROUTER_CONFIDENCE"], "5"),
+}
 SHORT = {"INSUFFICIENT_EVIDENCE": "E", "PRIVACY_RESTRICTED": "P",
-         "OUT_OF_SCHEMA": "S", "GRAPH_PATH_NOT_FOUND": "G"}
+         "OUT_OF_SCHEMA": "S", "GRAPH_PATH_NOT_FOUND": "G",
+         "LOW_ROUTER_CONFIDENCE": "R"}
+
+# main() 이 --game 으로 다시 채운다. 모듈 로드 시점 기본값은 논문의 4인 게임.
+PLAYERS, SUFFIX = _GAMES[4][0], _GAMES[4][1]
 ALWAYS_ON = frozenset(ALL_TRIGGERS) - frozenset(PLAYERS)
 
 
 def cond_name(subset: frozenset) -> str:
-    """부분집합 → 조건 이름. 이미 있는 조건은 그 이름을 재사용한다(재실행 낭비 방지)."""
+    """부분집합 → 조건 이름. 이미 있는 조건은 그 이름을 재사용한다(재실행 낭비 방지).
+
+    `proposed` 와 `loo_*` 만 게임 간에 공유된다. 두 경우 모두 켜지는 트리거 집합이
+    `ALL_TRIGGERS` 또는 `ALL_TRIGGERS - {하나}` 로 게임 정의와 무관하게 같기 때문이다.
+
+    나머지 부분집합은 반드시 게임별로 분리해야 한다. 4인 게임의 `shap_E` 는 router
+    게이트가 켜진 채 실행됐으므로, 5인 게임에서 같은 이름이 가리키는 구성(router 꺼짐)과
+    **다른 조건**이다. 접미사 없이 재사용하면 서로 다른 시스템의 risk 를 한 격자에
+    섞게 된다 — loo_ablation.py 가 막고 있는 것과 같은 종류의 오염이다.
+    """
     if subset == frozenset(PLAYERS):
         return "proposed"
     missing = frozenset(PLAYERS) - subset
     if len(missing) == 1:
         return f"loo_{next(iter(missing)).lower()}"
-    return "shap_" + ("".join(SHORT[p] for p in PLAYERS if p in subset) or "none")
+    return f"shap{SUFFIX}_" + ("".join(SHORT[p] for p in PLAYERS if p in subset) or "none")
 
 
 def subsets():
@@ -74,12 +100,21 @@ def risk_of(runs, gold) -> float:
     return sum(not gold[r["qid"]]["answerable"] for r in answered) / len(answered)
 
 
+def done_qids(path: Path) -> set:
+    """그 조건에서 **끝까지 간** 질의들. 종료줄(_run)이 있는 것만 센다."""
+    if not path.exists():
+        return set()
+    return {json.loads(l)["qid"] for l in path.read_text(encoding="utf-8").splitlines()
+            if l.strip() and '"_run"' in l}
+
+
+def n_done(path: Path) -> int:
+    return len(done_qids(path))
+
+
 def run_condition(name: str, abstain_on: frozenset, gold_rows: list, agents) -> None:
     out = RUNS / f"{name}.jsonl"
-    done = set()
-    if out.exists():
-        done = {json.loads(l)["qid"] for l in out.read_text(encoding="utf-8").splitlines()
-                if l.strip() and '"_run"' in l}
+    done = done_qids(out)
     if len(done) >= len(gold_rows):
         return
     tr = Tracer(out, run_id="shapley", system=name, backbone="gpt-oss-20b",
@@ -100,13 +135,23 @@ def run_condition(name: str, abstain_on: frozenset, gold_rows: list, agents) -> 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry", action="store_true")
+    ap.add_argument("--game", type=int, choices=sorted(_GAMES), default=4,
+                    help="분해할 플레이어 수. 4=논문의 실행 게이트만, 5=이 벤치마크에서 발화하는 전부")
     args = ap.parse_args()
+
+    global PLAYERS, SUFFIX, ALWAYS_ON, OUT
+    PLAYERS, SUFFIX = _GAMES[args.game]
+    ALWAYS_ON = frozenset(ALL_TRIGGERS) - frozenset(PLAYERS)
+    OUT = ROOT / f"eval/shapley{SUFFIX}.json"
 
     gold = load_gold()
     gold_rows = [json.loads(l) for l in GOLD.read_text(encoding="utf-8").splitlines() if l.strip()]
 
+    # 파일이 있다고 조건이 끝난 게 아니다. 중단된 실행이 48/60 짜리 파일을 남기면
+    # 존재만 보는 판정은 그 조건을 완료로 치고 넘어가고, 마지막 완결성 검사에서야
+    # 죽는다 — 그 사이 실행한 나머지 조건은 전부 낭비다. 문항 수로 판정한다.
     plan = [(s, cond_name(s)) for s in subsets()]
-    have = {p.stem for p in RUNS.glob("*.jsonl")}
+    have = {p.stem for p in RUNS.glob("*.jsonl") if n_done(p) >= len(gold_rows)}
     todo = [(s, n) for s, n in plan if n not in have]
     print(f"부분집합 {len(plan)}개, 이미 있음 {len(plan) - len(todo)}, 실행 필요 {len(todo)}")
     if args.dry:
