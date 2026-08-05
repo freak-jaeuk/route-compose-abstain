@@ -20,11 +20,11 @@
    "reason": "INSUFFICIENT_EVIDENCE",
    "trigger": "evidence gate",
    "n": 7,
-   "would_be_wrong": 1,
-   "would_be_recovered": 6,
+   "would_be_wrong": 2,
+   "would_be_recovered": 5,
    "cf_coverage": 0.6833333333333333,
-   "cf_risk": 0.12195121951219512,
-   "risk_delta": 0.004304160688665709
+   "cf_risk": 0.14634146341463414,
+   "risk_delta": 0.028694404591104727
   },
   {
    "reason": "PRIVACY_RESTRICTED",

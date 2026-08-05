@@ -43,7 +43,7 @@
 {"qid": "g043", "question": "코로나 백신 접종 예약은 어떻게 하나", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE", "note": "법령·통계 어디에도 없는 절차 질의"}
 {"qid": "g044", "question": "감염병 예방을 위한 개인 위생수칙을 알려줘", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE", "note": "건강교육 정보, 코퍼스 밖"}
 {"qid": "g045", "question": "독감 백신은 언제 맞는 게 좋은가", "route_label": "ABSTAIN", "answerable": false, "gold_abstain_reason": "INSUFFICIENT_EVIDENCE"}
-{"qid": "g046", "question": "2025년 전국 A형간염 발생 건수", "route_label": "SQL", "answerable": true}
+{"qid": "g046", "question": "2025년 전국 A형간염 발생 건수", "route_label": "ABSTAIN", "answerable": false}
 {"qid": "g047", "question": "2018년 시도별 홍역 발생 현황", "route_label": "SQL", "answerable": true}
 {"qid": "g048", "question": "제3급감염병의 신고 시기는 어떻게 되나", "route_label": "DOCUMENT", "answerable": true}
 {"qid": "g049", "question": "감염병의사환자란 무엇을 의미하나", "route_label": "DOCUMENT", "answerable": true}

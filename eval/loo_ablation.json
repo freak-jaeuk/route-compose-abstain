@@ -11,11 +11,11 @@
    "trigger": "evidence gate",
    "n": 60,
    "coverage": 0.6666666666666666,
-   "risk": 0.1,
+   "risk": 0.125,
    "answered": 40,
-   "delta_risk_measured": -0.017647058823529405,
-   "delta_risk_estimated": 0.004304160688665709,
-   "estimate_error": 0.021951219512195114
+   "delta_risk_measured": 0.00735294117647059,
+   "delta_risk_estimated": 0.028694404591104727,
+   "estimate_error": 0.021341463414634138
   },
   {
    "reason": "PRIVACY_RESTRICTED",

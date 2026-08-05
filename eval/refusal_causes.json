@@ -51,11 +51,6 @@
    "root_cause": "retrieval_miss"
   },
   {
-   "qid": "g046",
-   "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "zero_count"
-  },
-  {
    "qid": "g048",
    "logged_reason": "GRAPH_PATH_NOT_FOUND",
    "root_cause": "router_wrong_path"
@@ -113,6 +108,11 @@
    "root_cause": "router_no_match"
   },
   {
+   "qid": "g046",
+   "logged_reason": "INSUFFICIENT_EVIDENCE",
+   "root_cause": "router_wrong_path"
+  },
+  {
    "qid": "g055",
    "logged_reason": "OUT_OF_SCHEMA",
    "root_cause": "router_no_match"
@@ -137,7 +137,6 @@
   "router_no_match": 4,
   "router_wrong_path": 2,
   "policy_overmatch": 2,
-  "retrieval_miss": 5,
-  "zero_count": 1
+  "retrieval_miss": 5
  }
 }
