@@ -33,22 +33,22 @@
   {
    "qid": "g029",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   },
   {
    "qid": "g030",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   },
   {
    "qid": "g031",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   },
   {
    "qid": "g032",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   },
   {
    "qid": "g046",
@@ -68,14 +68,14 @@
   {
    "qid": "g053",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   }
  ],
  "justified": [
   {
    "qid": "g033",
    "logged_reason": "INSUFFICIENT_EVIDENCE",
-   "root_cause": "composite_partial"
+   "root_cause": "retrieval_miss"
   },
   {
    "qid": "g035",
@@ -137,7 +137,7 @@
   "router_no_match": 4,
   "router_wrong_path": 2,
   "policy_overmatch": 2,
-  "composite_partial": 5,
+  "retrieval_miss": 5,
   "zero_count": 1
  }
 }

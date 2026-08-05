@@ -47,9 +47,14 @@ three numbers. Re-scoring the same traces says otherwise:
 | Perturbation | AURC worse than OFF | AUROC worse than OFF |
 |---|---|---|
 | all 6 reassignments of the 3 constants | **6/6** | **6/6** |
-| 1000 draws, each constant ~ U[0, 0.5) | **100%** | **100%** |
+| 1000 draws, each constant ~ U[0, 0.9] | **100%** | **100%** |
 
-Ranges over the random draws: AURC [0.144, 0.160] vs 0.118 for OFF; AUROC [0.702, 0.770] vs 0.866.
+Every answered query scores at least 0.6, so as long as all three refusal constants stay below that floor,
+only their **order** reaches either metric — the 6 permutations above already enumerate that space, and
+drawing from `[0, 0.6)` would be the same experiment twice. The draws therefore go up to 0.9, which lets a
+refusal outscore an answer; that is the case the permutations cannot reach.
+
+Ranges over the random draws: AURC [0.144, 0.387] vs 0.118 for OFF; AUROC [0.293, 0.770] vs 0.866.
 **No assignment of refusal constants recovers the OFF condition's ordering.** The result comes from
 *which* queries get refused, not from what score they are given.
 
@@ -139,15 +144,29 @@ Classifying the **root cause** of each false refusal from the traces (`refusal_c
 
 | Logged reason | Actual root cause |
 |---|---|
-| `INSUFFICIENT_EVIDENCE` | composite_partial 5 · zero_count 1 |
+| `INSUFFICIENT_EVIDENCE` | retrieval_miss 5 · zero_count 1 |
 | `LOW_ROUTER_CONFIDENCE` | router_no_match 4 |
 | `GRAPH_PATH_NOT_FOUND` | router_wrong_path 2 |
 | `PRIVACY_RESTRICTED` | policy_overmatch 2 |
 
-**0 retrieval-recall failures.** 5 of the 6 `INSUFFICIENT_EVIDENCE` items are cases where the first leg of a COMPOSITE
-succeeded and the second leg stalled, and the 2 `GRAPH_PATH_NOT_FOUND` items are queries that were routed down the wrong
-path to begin with. A reason code tells you "which gate fired", not
-"why the query reached that gate".
+**For 9 of the 14 the code names the cause; for 5 it names only the gate.** Accurate: the 5 `retrieval_miss`
+items (the retriever ran and returned nothing above threshold) and the 4 `router_no_match` items (never
+reached a retriever). Not accurate: the 2 `GRAPH_PATH_NOT_FOUND` items are literally true — no such path
+existed — but the cause is that the router sent a document query to the graph; the 2 `PRIVACY_RESTRICTED`
+items matched a name-like token inside an aggregate query; and the 1 `zero_count` item ran its SQL
+successfully and summed to 0 over rows that exist — zero *is* the answer, which is why refusing it counts as
+a false refusal, and it is a different operational problem from a retriever that missed. A reason code tells you "which gate fired", not "why the query reached that gate".
+
+### The first version of this classifier inverted the result
+
+An earlier `refusal_causes.py` sent any refusal on a COMPOSITE query to `composite_partial` whenever a tool
+had been called, without looking at what the tool returned. All 6 COMPOSITE refusals made exactly one call,
+to the document retriever, which returned `{"hits": 0}` — so they were recorded as "first leg succeeded,
+second leg stalled", and the `retrieval_miss` branch became **unreachable for COMPOSITE queries by
+construction**. On that classification this section reported **0 retrieval-recall failures**; 5 of the 14 are
+retrieval failures. The traces held the correction the whole time — the branch order, not the data, produced
+the old number. This is the same "the label records which branch fired, not what happened" defect the section
+is about, one level up in our own measurement code.
 
 ## 5. Even so: the diagnosis did fix the system
 

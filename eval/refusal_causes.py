@@ -31,23 +31,67 @@ RUNS = ROOT / (sys.argv[1] if len(sys.argv) > 1 else "eval/runs")
 OUT = ROOT / "eval/refusal_causes.json"
 
 
+def _yield(row: dict) -> int:
+    """도구 한 번이 실제로 내놓은 근거 개수. 없으면 0.
+
+    `row_count`는 의도적으로 제외한다. trace 전체에서 `agg="sum"` 호출 163건의
+    row_count가 전부 정확히 1이다 — 집계 질의는 밑에 데이터가 하나도 없어도
+    행 하나를 돌려주므로 row_count는 산출량 신호가 아니다. 이걸 근거 개수로
+    세면 합계가 0인 질의가 '근거를 받았다'로 기록된다. SQL 경로의 빈 결과는
+    아래 zero_count 분기가 따로 잡는다.
+
+    이 제외는 판정을 바꾸는 가정이므로 여기 적어둔다 — 이 파일이 고친 버그가
+    바로 '문서화되지 않은 분류기 가정'이었다.
+    """
+    out = row.get("output") or {}
+    if not isinstance(out, dict):
+        return 0
+    for k in ("hits", "n", "count", "rows", "paths", "results"):
+        v = out.get(k)
+        if isinstance(v, int):
+            return v
+        if isinstance(v, list):
+            return len(v)
+    return 0
+
+
 def classify(qid: str, rows: list, g: dict) -> str:
-    """한 질의의 trace 줄들로 근인을 판정한다."""
+    """한 질의의 trace 줄들로 근인을 판정한다.
+
+    분기 순서가 결론을 만든다. 이전 판은 COMPOSITE이기만 하면 도구를 몇 번 불렀든,
+    그 도구가 무엇을 내놓았든 composite_partial로 보냈다. 그래서 근거를 0건 받고
+    멈춘 질의까지 '첫 leg은 성공했다'로 기록됐고, retrieval_miss 분기는 COMPOSITE
+    질의에서 영영 도달할 수 없었다 — "검색 리콜 실패 0건"이라는 결론이 데이터가
+    아니라 이 순서에서 나왔다.
+
+    이제 도구의 **산출**을 먼저 본다. 근거를 하나도 못 받았으면 leg 개수와 무관하게
+    검색 실패이고, composite_partial은 '한 leg은 근거를 받았는데 다른 leg에서
+    멈춘' 경우로 좁힌다.
+    """
     run = next((r for r in rows if r.get("tool") == "_run"), None)
-    tools = [r["tool"] for r in rows if r.get("tool") not in ("_run", "route")]
+    calls = [r for r in rows if r.get("tool") not in ("_run", "route")]
+    tools = [r["tool"] for r in calls]
     reason = run.get("abstain_reason") if run else None
     route = run.get("route_pred") if run else None
 
     if reason == "PRIVACY_RESTRICTED":
         return "policy_overmatch"
-    if not tools:
+    if not calls:
         # 도구를 한 번도 안 불렀다 = 라우터 단계에서 끝났다
         return "router_no_match"
-    if g["route_label"] == "COMPOSITE" and len(tools) >= 1:
-        return "composite_partial"
     if route and route != g["route_label"]:
         return "router_wrong_path"
-    if reason == "INSUFFICIENT_EVIDENCE" and "query_structured_data" in tools:
+
+    productive = [c for c in calls if _yield(c) > 0]
+    if not productive:
+        # 도구는 돌았는데 아무것도 못 받았다. SQL이 정상 실행돼 0행이면 데이터가
+        # 없는 것이고, 검색기가 0건이면 리콜 실패다 — 둘은 다른 문제다.
+        if all(c["tool"] == "query_structured_data" for c in calls):
+            return "zero_count"
+        return "retrieval_miss"
+    if g["route_label"] == "COMPOSITE" and len(productive) < len(set(tools)):
+        return "composite_partial"
+    if "query_structured_data" in tools and reason == "INSUFFICIENT_EVIDENCE":
         return "zero_count"
     return "retrieval_miss"
 

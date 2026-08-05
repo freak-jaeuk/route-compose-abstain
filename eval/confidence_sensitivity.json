@@ -80,17 +80,22 @@
    "auroc_worse": true
   }
  ],
+ "answered_min_confidence": 0.6,
  "random": {
   "B": 1000,
+  "drawn_from": [
+   0.0,
+   0.9
+  ],
   "aurc_worse_frac": 1.0,
   "auroc_worse_frac": 1.0,
   "both_worse_frac": 1.0,
   "aurc_range": [
    0.14402008146253673,
-   0.15960784313725498
+   0.3874854291153097
   ],
   "auroc_range": [
-   0.7017045454545454,
+   0.29261363636363635,
    0.7698863636363636
   ]
  }

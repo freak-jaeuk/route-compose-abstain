@@ -8,8 +8,13 @@ execution gate 0.10, router는 라우터 신뢰도). 즉 60개 중 26개의 점�
 
 여기서 그 세 상수를 흔들어 본다:
   (1) 세 값을 세 그룹에 재배치하는 6가지 순열 전부
-  (2) 각 그룹에 [0, 0.5) 균등난수를 주는 무작위 추출 B회
-그리고 각 경우에 결론(AURC 악화 & AUROC 악화)이 유지되는 비율을 센다.
+  (2) 각 그룹에 [0, 0.9] 균등난수를 주는 무작위 추출 B회
+
+(2)의 상한이 답변 confidence 구간과 겹치는 것이 핵심이다. 거절 상수를 답변 최솟값
+(0.6) 아래에서만 뽑으면 지표는 세 상수의 **순서**에만 의존하므로 (1)의 순열 6개가
+그 공간을 이미 전수 커버한다 — 즉 같은 실험을 두 번 보고하는 꼴이 된다. 상한을
+0.9로 올려 거절이 답변보다 높은 점수를 받는 배치까지 포함시켜야 (1)로 환원되지
+않는 검사가 된다.
 
 답변 생성이 꺼져 있고 라우터가 규칙 기반이라 거절 여부 자체는 상수와 무관하다.
 따라서 시스템 재실행 없이 로그만 다시 채점하면 된다.
@@ -123,10 +128,19 @@ def main() -> None:
               f"{aurc:.4f} | {auroc:.4f} | {'예' if w_aurc else '**아니오**'} | "
               f"{'예' if w_auroc else '**아니오**'} |")
 
-    # (2) 세 상수를 [0, 0.5)에서 무작위로 — 순서 가정 자체를 없앤다
+    # 답변 질의의 최소 confidence. 거절 상수가 전부 이 아래에 있으면 값은 무의미하고
+    # 세 상수의 **순서**만 지표에 남는다 — 그 경우 위 6개 순열이 공간을 전부 덮는다.
+    ans_min = min((r.get("answer_confidence") or 0.0)
+                  for r in on if r.get("verdict") == "ANSWER")
+    print(f"\n답변 질의의 최소 confidence = {ans_min}. 거절 상수가 이 아래이기만 하면")
+    print("지표는 세 상수의 순서에만 의존하므로 위 6개 순열이 그 공간을 전수 커버한다.")
+    print("따라서 [0, ans_min) 무작위 추출은 새 정보가 없다 — 대신 답변 구간과")
+    print(f"겹치도록 [0, 0.9] 에서 뽑아 거절이 답변보다 높은 점수를 받는 경우까지 본다.\n")
+
+    # (2) 답변 구간과 겹치게 뽑는다. 이건 순열로 환원되지 않는 진짜 검사다.
     rnd = []
     for _ in range(args.B):
-        a = {k: random.uniform(0.0, 0.5) for k in keys}
+        a = {k: random.uniform(0.0, 0.9) for k in keys}
         aurc, auroc = score(on, gold, a)
         rnd.append({"aurc": aurc, "auroc": auroc,
                     "aurc_worse": aurc > aurc_off, "auroc_worse": auroc < auroc_off})
@@ -138,8 +152,9 @@ def main() -> None:
         "off": {"aurc": aurc_off, "auroc": auroc_off},
         "shipped": {"assignment": SHIPPED, "aurc": aurc_ship, "auroc": auroc_ship},
         "permutations": perms,
+        "answered_min_confidence": ans_min,
         "random": {
-            "B": args.B,
+            "B": args.B, "drawn_from": [0.0, 0.9],
             "aurc_worse_frac": frac(rnd, "aurc_worse"),
             "auroc_worse_frac": frac(rnd, "auroc_worse"),
             "both_worse_frac": sum(r["aurc_worse"] and r["auroc_worse"] for r in rnd) / len(rnd),
@@ -153,7 +168,7 @@ def main() -> None:
     pr = sum(p["auroc_worse"] for p in perms)
     print(f"\n순열 6개 중 AURC 악화 {pa}/6, AUROC 악화 {pr}/6")
     R = payload["random"]
-    print(f"\n## [0, 0.5) 무작위 {args.B}회")
+    print(f"## [0, 0.9] 무작위 {args.B}회 (답변 구간과 겹침)")
     print(f"  AURC 악화  {R['aurc_worse_frac']:.1%}   범위 [{R['aurc_range'][0]:.3f}, {R['aurc_range'][1]:.3f}]")
     print(f"  AUROC 악화 {R['auroc_worse_frac']:.1%}   범위 [{R['auroc_range'][0]:.3f}, {R['auroc_range'][1]:.3f}]")
     print(f"  둘 다 악화 {R['both_worse_frac']:.1%}")
