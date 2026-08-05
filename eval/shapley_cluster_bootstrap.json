@@ -1,0 +1,77 @@
+{
+ "clusters": 54,
+ "pairs": [
+  [
+   "g034",
+   "g004"
+  ],
+  [
+   "g035",
+   "g001"
+  ],
+  [
+   "g036",
+   "g001"
+  ],
+  [
+   "g037",
+   "g046"
+  ],
+  [
+   "g041",
+   "g004"
+  ],
+  [
+   "g055",
+   "g001"
+  ]
+ ],
+ "B": 6000,
+ "result": {
+  "INSUFFICIENT_EVIDENCE": {
+   "phi": -0.07059826969037844,
+   "ci": [
+    -0.12979825089538974,
+    -0.01544985720629289
+   ],
+   "excludes_zero": true,
+   "frac_negative": 0.9953333333333333
+  },
+  "PRIVACY_RESTRICTED": {
+   "phi": -0.014832475382384639,
+   "ci": [
+    -0.03630183643411117,
+    0.001702631308456393
+   ],
+   "excludes_zero": false,
+   "frac_negative": 0.9535
+  },
+  "OUT_OF_SCHEMA": {
+   "phi": -0.03178047356608077,
+   "ci": [
+    -0.06540115756129865,
+    0.0
+   ],
+   "excludes_zero": false,
+   "frac_negative": 0.9533333333333334
+  },
+  "GRAPH_PATH_NOT_FOUND": {
+   "phi": 0.003941065431320306,
+   "ci": [
+    0.0,
+    0.011080486477862644
+   ],
+   "excludes_zero": false,
+   "frac_negative": 0.0
+  },
+  "LOW_ROUTER_CONFIDENCE": {
+   "phi": -0.035749454635613735,
+   "ci": [
+    -0.08407131406828174,
+    0.00331128813856131
+   ],
+   "excludes_zero": false,
+   "frac_negative": 0.9635
+  }
+ }
+}
