@@ -123,9 +123,11 @@ Its marginal effect depends entirely on the coalition:
 | evidence gate only | 0.118 → 0.118 | 0.000 |
 | the other three | 0.118 → 0.118 | 0.000 |
 
-Leave-one-out only ever sees the last row. The privacy screen is 0.000 in *every* coalition
-(genuinely inert, not masked); the graph path check is slightly harmful. Leave-one-out reports
-all three situations identically as 0.000.
+Leave-one-out only ever sees the last row. The privacy screen is 0.000 in *every* coalition, but that is
+not evidence it does nothing: the other four triggers stay enabled in all 16 configurations, and
+`LOW_ROUTER_CONFIDENCE` — one of them — refuses all six privacy queries whenever the screen is off. It is
+masked by a player outside the game, so φ=0 here means "adds nothing given the always-on gates". The graph
+path check is slightly harmful. Leave-one-out reports all three situations identically as 0.000.
 
 ### The shipped configuration is dominated
 
