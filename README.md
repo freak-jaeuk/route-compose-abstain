@@ -27,8 +27,8 @@ verifies the evidence per route, and then emits one of `ANSWER` / `CLARIFY` / `A
 |---|---|---|
 | Structured | 14,226 rows (68 diseases × 2015~2026 × 18 regions) | [KDCA Infectious Disease Portal](https://dportal.kdca.go.kr) |
 | Document | 202 chunks / 감염병예방법·시행령·시행규칙 (the Act, its Enforcement Decree and Enforcement Rules) | [Korean Law Information Center](https://www.law.go.kr) |
-| Graph | 213 nodes · 125 delegation edges | rule-based extraction from the statutes above (no LLM) |
-| Join hub | 88 statutory disease types ↔ 68 statistical types, 99% matched | `data/disease_hub.csv` |
+| Graph | 285 nodes (213 articles · 68 diseases · 4 grades) · 260 edges, of which 125 are delegation | rule-based extraction from the statutes above (no LLM) |
+| Join hub | 67 matched: 98.5% of the 68 statistical types, 76.1% of the statute's 88 enumerated types | `data/disease_hub.csv` |
 
 ## Running
 

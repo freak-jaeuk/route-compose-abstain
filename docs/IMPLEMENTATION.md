@@ -15,10 +15,10 @@ None of this is a stub. Everything runs end-to-end on real public data, real ret
 | Layer | Status | Evidence |
 |---|---|---|
 | Data collection (KDCA API) | ✅ | 14,226 rows (68 diseases × 2015~2026 × 18 regions), nationwide = sum-of-regions consistency PASS |
-| Join hub | ✅ | 88 statute disease types ↔ 68 statistics disease types, 99% matched |
+| Join hub | ✅ | 67 matched — 98.5% of the 68 statistics types, 76.1% of the statute's 88 |
 | SQLite structured store | ✅ | Double counting and join integrity verified with real queries |
 | Document store (202 chunks) | ✅ | Article-level chunking of 감염병예방법·시행령·시행규칙 (the Act, its Enforcement Decree and its Enforcement Rules) |
-| Knowledge graph (213 nodes, 125 edges) | ✅ | Rule-extracted delegation edges, 2-hop traversal on ladybug |
+| Knowledge graph (285 nodes, 260 edges — 125 delegation) | ✅ | Rule-extracted delegation edges, 2-hop traversal on ladybug |
 | SQL Agent | ✅ | NL→QuerySpec→validation→parameterized SQL→read-only. Passes its own security self-check |
 | Document Agent | ✅ | BM25(kiwi)+bge-m3+reranker hybrid, RRF |
 | Graph Agent | ✅ | 3 Cypher templates, read-only |
