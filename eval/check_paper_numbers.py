@@ -158,6 +158,22 @@ def main():
     eq("제외[g046] risk diff", exc["drop_corrected"]["on"]["risk"] - exc["drop_corrected"]["off"]["risk"], -0.154, 3)
     eq("제외[privacy] AUROC diff", exc["drop_privacy"]["on"]["auroc"] - exc["drop_privacy"]["off"]["auroc"], -0.161, 3)
 
+    # App. config 의 -1 sentinel 패턴 주장. 66개 조합 전부에서 명명된 지역과 전국 합계가
+    # -1 이고 잔여 '기타' 버킷만 값을 갖는다 — 이 모양이 깨지면 부록 문장이 거짓이 된다.
+    import csv
+    raw = E.parent / "data/raw/kdca_infectious_region.csv"
+    if raw.is_file():
+        cells = collections.defaultdict(dict)
+        for r in csv.reader(open(raw)):
+            if r and r[0].isdigit():
+                cells[(r[3], r[0])][r[4]] = int(r[5])
+        neg = {k: v for k, v in cells.items() if any(x == -1 for x in v.values())}
+        eq("-1 조합 수", len(neg), 66)
+        clean = sum(1 for v in neg.values()
+                    if all(x == -1 for reg, x in v.items() if reg != "기타")
+                    and v.get("전국") == -1 and v.get("기타", 0) > 0)
+        eq("-1 패턴이 깨끗한 조합", clean, len(neg))
+
     # App. E: stress set 이 6개 stratum 은 설계대로(41/41), 6개는 깨진다(13/63).
     conf = json.load(open(E / "confirmation_summary.json"))
     eq("stress set n", conf["n"], 104)
