@@ -101,6 +101,36 @@ def main():
     eq("evidence 단독 응답", a_e, 40)
     eq("evidence 단독 오답", h_e, 4)
 
+    # Table 2 의 Est. 합. 추정량이 측정치를 1.5배 과대평가한다는 §5.2 주장의 근거.
+    eq("ΣEst", sum(4 / 34 - (4 + u_t[c]) / (34 + n_t[c]) for c in n_t), -0.249, 3)
+
+    # §5.2 recapture. LOO 가 정확히 0 인 게이트 ⟺ recapture 가 1 이라는 이분법.
+    base = {r["qid"]: (r["verdict"], r["abstain_reason"]) for r in runs("proposed")}
+    for code, want in [("OUT_OF_SCHEMA", (3, 3)), ("PRIVACY_RESTRICTED", (6, 6)),
+                       ("GRAPH_PATH_NOT_FOUND", (2, 2)), ("INSUFFICIENT_EVIDENCE", (1, 7)),
+                       ("LOW_ROUTER_CONFIDENCE", (4, 8))]:
+        targets = [q for q, (v, c) in base.items() if v != "ANSWER" and c == code]
+        off = {r["qid"]: r["verdict"] for r in runs(f"loo_{code.lower()}")}
+        eq(f"recapture[{code}]", (sum(1 for q in targets if off[q] != "ANSWER"), len(targets)), want)
+
+    # §5.1 의 evidence-count 베이스라인. recall 은 정책과 '동일'하다 — 한때 여기서
+    # "better on both counts" 라고 썼는데 recall 은 양쪽 다 13/17 이다.
+    ez = {r["qid"] for r in runs("no_abstain") if abs(r["answer_confidence"] - 0.5) < 1e-9}
+    ez_tp = {q for q in ez if not GOLD[q]}
+    eq("evidence-zero 거절 수", len(ez), 16)
+    # 13/16 = 0.8125. 논문은 관례대로 half-up 해서 0.813 을 인쇄한다 (파이썬 round 는 0.812).
+    eq("evidence-zero precision", (len(ez_tp), len(ez)), (13, 16))
+    if ez_tp != {r["qid"] for r in tp}:
+        fails.append("evidence-zero 가 잡는 unanswerable 집합이 정책과 다르다 — §5.1 'same 13' 주장 붕괴")
+
+    # §5.1 의 Holm 결과. AURC 는 통과하지 못하고 AUROC 는 통과한다는 것이 헤드라인 방어다.
+    holm = {t["test"]: t for t in json.load(open(E / "holm.json"))["tests"]}
+    for name, survives in [("AUROC difference", True), ("risk difference", True),
+                           ("AUROC, cited-source count", True), ("AUROC, evidence count", True),
+                           ("AURC difference", False), ("AUGRC difference", False),
+                           ("AUROC, router confidence", False)]:
+        eq(f"Holm[{name}]", holm[name]["survives_holm"], survives)
+
     if fails:
         print(f"실패 {len(fails)}건:")
         for f in fails:
