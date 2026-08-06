@@ -118,7 +118,7 @@ def fig_risk_coverage(gold, by):
             ax.scatter([c], [e], color=st["color"], marker="*", s=90, zorder=5,
                        edgecolors="white", linewidths=0.6)
     ax.set_xlabel("Coverage")
-    ax.set_ylabel("Risk (error rate)")
+    ax.set_ylabel("Answerability risk")
     ax.set_xlim(0, 1.02)
     ax.set_ylim(0, None)
     ax.legend(loc="upper left", frameon=False, fontsize=7, handlelength=1.6, borderaxespad=0.2)

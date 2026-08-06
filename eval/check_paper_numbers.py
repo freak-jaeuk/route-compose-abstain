@@ -131,6 +131,38 @@ def main():
                            ("AUROC, router confidence", False)]:
         eq(f"Holm[{name}]", holm[name]["survives_holm"], survives)
 
+    # --- v24 에서 논문에 새로 인쇄한 값들 ---
+    # Table 2 Rec. 열 (recapture). 완전 recapture 인 게이트가 정확히 LOO=0 인 게이트여야 한다.
+    for code, want in [("OUT_OF_SCHEMA", (3, 3)), ("PRIVACY_RESTRICTED", (6, 6)),
+                       ("GRAPH_PATH_NOT_FOUND", (2, 2)), ("INSUFFICIENT_EVIDENCE", (1, 7)),
+                       ("LOW_ROUTER_CONFIDENCE", (4, 8))]:
+        targets = [q for q, (v, c) in base.items() if v != "ANSWER" and c == code]
+        off = {r["qid"]: r["verdict"] for r in runs(f"loo_{code.lower()}")}
+        rec = (sum(1 for q in targets if off[q] != "ANSWER"), len(targets))
+        full = rec[0] == rec[1]
+        zero = abs(shap["leave_one_out"][code]) < 1e-12
+        if full != zero:
+            fails.append(f"App.mask 명제 위반 [{code}]: recapture={rec} 인데 LOO={shap['leave_one_out'][code]}")
+    eq("ΣRec.", sum(1 for q, (v, c) in base.items() if v != "ANSWER"
+                    and {r["qid"]: r["verdict"] for r in runs(f"loo_{c.lower()}")}[q] != "ANSWER"), 16)
+
+    # App. regold: 규칙 재도출이 60개 중 58개에서 저자 라벨과 일치.
+    import subprocess
+    out = subprocess.run([sys.executable, str(E / "gold_rederive.py")],
+                         capture_output=True, text=True).stdout
+    if "agreement 58/60" not in out:
+        fails.append(f"gold 재도출이 58/60 이 아니다: {out.splitlines()[0] if out else '(출력 없음)'}")
+
+    # App. excl: 두 제외 시나리오의 risk/AUROC 차이.
+    exc = json.load(open(E / "sensitivity.json"))
+    eq("제외[g046] risk diff", exc["drop_corrected"]["on"]["risk"] - exc["drop_corrected"]["off"]["risk"], -0.154, 3)
+    eq("제외[privacy] AUROC diff", exc["drop_privacy"]["on"]["auroc"] - exc["drop_privacy"]["off"]["auroc"], -0.161, 3)
+
+    # App. E: stress set 이 6개 stratum 은 설계대로(41/41), 6개는 깨진다(13/63).
+    conf = json.load(open(E / "confirmation_summary.json"))
+    eq("stress set n", conf["n"], 104)
+    eq("stress set 정답", conf["per_stratum_correct"], 54)   # 41 + 13
+
     if fails:
         print(f"실패 {len(fails)}건:")
         for f in fails:
