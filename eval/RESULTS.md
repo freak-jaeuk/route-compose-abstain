@@ -1,6 +1,6 @@
 # Evaluation results
 
-60 items in the infectious disease domain (44 answerable + 16 unanswerable, 6 contrastive twins),
+60 items in the infectious disease domain (43 answerable + 17 unanswerable, 6 minimal-edit pairs),
 across 6 conditions that vary only the abstention policy under the **same backbone, same retrieval, same router**.
 
 Reproduce:
@@ -11,7 +11,7 @@ python eval/bootstrap_ci.py            # confidence intervals
 python eval/coverage_matched.py        # coverage-matched comparison + tie-break range
 python eval/trigger_ablation.py        # log-based counterfactual estimate
 python eval/loo_ablation.py            # measured leave-one-trigger-out
-python eval/shapley.py                 # exact Shapley over all 16 trigger subsets
+python eval/shapley.py --game 5        # exact Shapley over all 32 trigger subsets
 python eval/confidence_sensitivity.py  # do the results survive other refusal constants?
 python eval/refusal_causes.py          # root-cause classification of false refusals
 ```
@@ -21,19 +21,20 @@ python eval/refusal_causes.py          # root-cause classification of false refu
 | Metric | Abstention ON [95% CI] | Abstention OFF [95% CI] | Difference [95% CI] |
 |---|---|---|---|
 | coverage | 0.567 [0.43, 0.68] | 1.000 | −0.433 [−0.567, −0.317] * |
-| **risk** | **0.118** [0.03, 0.24] | 0.267 [0.15, 0.38] | **−0.149 [−0.262, −0.048]** * |
-| **AURC↓** | 0.149 [0.07, 0.26] | **0.118** [0.05, 0.21] | **+0.031 [+0.001, +0.072]** * |
-| **AUROC↑** | 0.747 [0.61, 0.87] | **0.866** [0.77, 0.95] | **−0.119 [−0.213, −0.041]** * |
-| abstention precision | 0.462 [0.27, 0.67] | — | — |
-| abstention recall | 0.750 [0.52, 0.94] | — | — |
+| **risk** | **0.118** (4/34) [0.03, 0.24] | 0.283 (17/60) [0.17, 0.40] | **−0.166 [−0.280, −0.064]** * |
+| **AURC↓** | 0.155 [0.07, 0.26] | **0.123** [0.05, 0.21] | **+0.032 [+0.001, +0.073]** * |
+| **AUROC↑** | 0.763 [0.64, 0.88] | **0.883** [0.79, 0.96] | **−0.120 [−0.212, −0.044]** * |
+| AUGRC↓ | 0.119 | **0.110** | +0.009 [−0.015, +0.032] |
+| abstention precision | 0.500 (13/26) [0.31, 0.70] | — | — |
+| abstention recall | 0.765 (13/17) [0.55, 0.95] | — | — |
 | route macro-F1 | 0.736 | 0.655 | — |
 | selective accuracy | 0.778→0.824 | 0.667 | — |
 
 `*` = the 95% paired-bootstrap CI of the difference (B=10,000) does not include 0.
 `risk` = answerability risk (the fraction of unanswerable items among those answered), independent of routing.
 
-**It wins at the operating point and loses at ranking.** Abstention lowers risk from 0.267→0.118, but
-AURC gets worse (+0.031) and so does AUROC (−0.119). The two metrics point the same way independently.
+**It wins at the operating point and loses at ranking.** Abstention lowers risk from 0.283→0.118, but
+AURC gets worse (+0.032) and so does AUROC (−0.120). The two metrics point the same way independently.
 Of the two we treat AUROC as primary: the AURC interval reaches +0.001 at its lower end and
 would not survive correction for the 7 comparisons reported here (we apply none, and report
 intervals descriptively).
@@ -54,7 +55,7 @@ only their **order** reaches either metric — the 6 permutations above already 
 drawing from `[0, 0.6)` would be the same experiment twice. The draws therefore go up to 0.9, which lets a
 refusal outscore an answer; that is the case the permutations cannot reach.
 
-Ranges over the random draws: AURC [0.144, 0.387] vs 0.118 for OFF; AUROC [0.293, 0.770] vs 0.866.
+Ranges over the random draws: AURC [0.144, 0.387] vs 0.123 for OFF; AUROC [0.293, 0.770] vs 0.883.
 **No assignment of refusal constants recovers the OFF condition's ordering.** The result comes from
 *which* queries get refused, not from what score they are given.
 
@@ -66,7 +67,7 @@ Comparison with coverage held fixed at 0.567 (34/60):
 |---|---|
 | abstention policy (8 reason codes) | 0.118 (4/34) |
 | **most confident 34 with abstention OFF** | **0.080** [0.029, 0.118] |
-| random rejection (B=2000) | 0.267 [0.176, 0.353] |
+| random rejection (B=2000) | 0.283 [0.176, 0.353] |
 
 ⚠️ **"top 34 by confidence" is not a single set.** Confidence takes only 6 values, so 31 of the
 60 queries tie at the boundary (0.6) and 21 of the 34 slots must be filled out of that tie.
@@ -87,57 +88,75 @@ when the estimate came from a different trace directory.
 
 | Trigger | n_T | u_T | Estimated | Leave-one-out | **Shapley** |
 |---|---|---|---|---|---|
-| evidence gate | 7 | 1 | −0.004 | +0.018 | −0.020 |
-| privacy screen | 6 | 4 | −0.082 | 0.000 | 0.000 |
-| schema-range check | 3 | 3 | −0.072 | 0.000 | **−0.040** |
-| graph path check | 2 | 0 | +0.007 | 0.000 | +0.003 |
-| | | | | | Σ = −0.056 |
+| evidence gate | 7 | 2 | −0.029 | −0.007 | **−0.092** |
+| router confidence | 8 | 4 | −0.073 | **+0.012** | −0.033 |
+| schema-range check | 3 | 3 | −0.072 | 0.000 | −0.031 |
+| privacy screen | 6 | 4 | −0.082 | 0.000 | −0.014 |
+| graph path check | 2 | 0 | +0.007 | 0.000 | +0.004 |
+| **Σ** | **26** | **13** | | **+0.005** | **−0.166** |
 
-**All three methods disagree on every row.** The log-based estimate errs on all 4 and reverses
-sign on the evidence gate. Leave-one-out then reports exactly 0.000 for three triggers — not
-because they do nothing, but because the triggers are not independent:
+All three columns are in the same *enabling* convention: the value is
+v(S∪{i}) − v(S), so negative = the gate lowers risk. Leave-one-out is that
+quantity at S = N∖{i}. (An earlier `shapley.py` negated the leave-one-out
+column on write, which printed every entry with the wrong sign.)
+
+**All three methods disagree on every row.** The log-based estimate errs on all 5. Leave-one-out
+then reports exactly 0.000 for three triggers — not because they do nothing, but because the
+triggers are not independent:
 
 | Trigger removed | What happens to those queries |
 |---|---|
 | `PRIVACY_RESTRICTED`, 6 items | **all** abstained under `LOW_ROUTER_CONFIDENCE` |
 | `OUT_OF_SCHEMA`, 3 items | **all** abstained under `INSUFFICIENT_EVIDENCE` |
 | `GRAPH_PATH_NOT_FOUND`, 2 items | **all** abstained under `INSUFFICIENT_EVIDENCE` |
+| `LOW_ROUTER_CONFIDENCE`, 8 items | 4 answered · 4 abstained under `INSUFFICIENT_EVIDENCE` |
+| `INSUFFICIENT_EVIDENCE`, 7 items | 6 answered · 1 abstained under `OUT_OF_SCHEMA` |
 
 Turning a trigger off does not stop the query from being abstained — it only changes the reason. The counterfactual assumes that
 "turning the trigger off makes the query answered", but what actually happens is a **cascade**.
 
-`evidence gate` is the sole exception: removing it turns 6 of the 7 items into an actual ANSWER (the remaining 1 becomes `OUT_OF_SCHEMA`).
-That is why only this trigger has a non-zero leave-one-out effect — **leave-one-out measures a contribution only when nothing downstream catches the query.**
+Only the evidence gate and the router gate have a non-zero leave-one-out effect, and they have it for the
+same reason: removing either lets some of its queries through to an actual ANSWER rather than to the next
+gate. **Leave-one-out measures a contribution only when nothing downstream catches the query.**
+Note the router row: removing it *lowers* risk (0.118 → 0.105), because all 4 queries it releases are
+gold-answerable. Its leave-one-out sign (+0.012) is therefore opposite to its Shapley value (−0.033).
 
 ### Shapley recovers what leave-one-out erased (`shapley.py`)
 
-Only 4 triggers, so the full lattice is 2⁴ = 16 configurations = 960 runs (~5s each). Exact, no approximation.
-Efficiency axiom holds: Σφ = v(N) − v(∅) = 0.118 − 0.174 = −0.056.
+Five triggers fire on this workload, so the full lattice is 2⁵ = 32 configurations = 1,920 query
+executions. Exact, no approximation. (The other three of the eight reason codes were enabled in all 32
+reruns and fired in none, so they are dummy players with φ = 0 exactly.)
+Efficiency axiom holds: Σφ = v(N) − v(∅) = 0.118 − 0.283 = −0.166.
 
-The schema-range check carries **71% of the total risk reduction** while leave-one-out scores it 0.000.
-Its marginal effect depends entirely on the coalition:
+The evidence gate carries **55% of the total risk reduction** (φ = −0.092) while leave-one-out scores it
+−0.007, twelve times smaller. The schema-range check carries φ = −0.031 while leave-one-out scores it
+exactly 0.000. Its marginal effect depends entirely on the coalition:
 
 | Coalition it is added to | risk before → after | Δ |
 |---|---|---|
-| nothing | 0.174 → 0.095 | **−0.079** |
-| evidence gate only | 0.118 → 0.118 | 0.000 |
-| the other three | 0.118 → 0.118 | 0.000 |
+| nothing | 0.283 → 0.232 | **−0.051** |
+| evidence gate only | 0.100 → 0.100 | 0.000 |
+| the other four | 0.118 → 0.118 | 0.000 |
 
 Leave-one-out only ever sees the last row. The privacy screen is 0.000 in *every* coalition, but that is
-not evidence it does nothing: the other four triggers stay enabled in all 16 configurations, and
-`LOW_ROUTER_CONFIDENCE` — one of them — refuses all six privacy queries whenever the screen is off. It is
-masked by a player outside the game, so φ=0 here means "adds nothing given the always-on gates". The graph
-path check is slightly harmful. Leave-one-out reports all three situations identically as 0.000.
+not evidence it does nothing. In the earlier 4-player game it scored φ = 0.000 exactly, because
+`LOW_ROUTER_CONFIDENCE` was outside the game and always on, and it refuses all six privacy queries whenever
+the screen is off. Admitting the router as a fifth player moves the screen to φ = −0.014. A Shapley
+attribution over a *subset* of a system's gates cannot separate a component that does nothing from one
+masked by a player left outside. The graph path check is slightly harmful (φ = +0.004). Leave-one-out
+reports all three situations identically as 0.000.
 
 ### The shipped configuration is dominated
 
 | Configuration | coverage | risk | answered | errors |
 |---|---|---|---|---|
-| all 4 triggers (shipped) | 0.567 | 0.118 | 34 | 4 |
-| **schema-range check alone** | **0.700** | **0.095** | **42** | **4** |
+| all 5 triggers (shipped) | 0.567 | 0.118 | 34 | 4 |
+| **evidence gate alone** | **0.667** | **0.100** | **40** | **4** |
 
-Better on both axes — 8 more answers, same number of errors. Three of the four triggers buy
-nothing here and cost coverage. One-at-a-time ablation cannot find this: the comparison that
+Better on both axes — 6 more answers, *the same four* errors. The two configurations differ on 6
+answer/refuse decisions, all in the same direction (exact McNemar p = 0.031), and every one of the 6
+queries the other gates refuse is gold-answerable. The remaining four triggers buy no additional safety
+here and cost coverage. One-at-a-time ablation cannot find this: the comparison that
 reveals it is between two configurations leave-one-out never visits.
 
 ## 4. A reason code tells you only which gate fired
@@ -146,18 +165,23 @@ Classifying the **root cause** of each false refusal from the traces (`refusal_c
 
 | Logged reason | Actual root cause |
 |---|---|
-| `INSUFFICIENT_EVIDENCE` | retrieval_miss 5 · zero_count 1 |
+| `INSUFFICIENT_EVIDENCE` | retrieval_miss 5 |
 | `LOW_ROUTER_CONFIDENCE` | router_no_match 4 |
 | `GRAPH_PATH_NOT_FOUND` | router_wrong_path 2 |
 | `PRIVACY_RESTRICTED` | policy_overmatch 2 |
 
-**For 9 of the 14 the code names the cause; for 5 it names only the gate.** Accurate: the 5 `retrieval_miss`
-items (the retriever ran and returned nothing above threshold) and the 4 `router_no_match` items (never
-reached a retriever). Not accurate: the 2 `GRAPH_PATH_NOT_FOUND` items are literally true — no such path
-existed — but the cause is that the router sent a document query to the graph; the 2 `PRIVACY_RESTRICTED`
-items matched a name-like token inside an aggregate query; and the 1 `zero_count` item ran its SQL
-successfully and summed to 0 over rows that exist — zero *is* the answer, which is why refusing it counts as
-a false refusal, and it is a different operational problem from a retriever that missed. A reason code tells you "which gate fired", not "why the query reached that gate".
+**For 9 of the 13 the code names the cause; for 4 it names only the gate.** (Wilson 95% CI on 9/13:
+42%–87%.) Accurate: the 5 `retrieval_miss` items (the retriever ran and returned nothing above threshold)
+and the 4 `router_no_match` items (never reached a retriever). Not accurate: the 2 `GRAPH_PATH_NOT_FOUND`
+items are literally true — no such path existed — but the cause is that the router sent a document query to
+the graph; and the 2 `PRIVACY_RESTRICTED` items matched a name-like token inside an aggregate query.
+A reason code tells you "which gate fired", not "why the query reached that gate".
+
+A fourteenth refusal used to appear here as a `zero_count` false refusal: `INSUFFICIENT_EVIDENCE` fired on a
+2025 incidence query whose SQL ran and summed to zero, and we had labelled it answerable, reading that zero
+as the answer. It is not — 2025 and 2026 each carry 1,156 rows summing to exactly zero where every year
+through 2024 sums to six figures, so the store is encoding "not yet reported" as zero. The gate was right
+and the gold label was wrong; it is now a justified refusal and the false-refusal count is 13.
 
 ### The first version of this classifier inverted the result
 
@@ -165,7 +189,7 @@ An earlier `refusal_causes.py` sent any refusal on a COMPOSITE query to `composi
 had been called, without looking at what the tool returned. All 6 COMPOSITE refusals made exactly one call,
 to the document retriever, which returned `{"hits": 0}` — so they were recorded as "first leg succeeded,
 second leg stalled", and the `retrieval_miss` branch became **unreachable for COMPOSITE queries by
-construction**. On that classification this section reported **0 retrieval-recall failures**; 5 of the 14 are
+construction**. On that classification this section reported **0 retrieval-recall failures**; 5 of the 13 are
 retrieval failures. The traces held the correction the whole time — the branch order, not the data, produced
 the old number. This is the same "the label records which branch fired, not what happened" defect the section
 is about, one level up in our own measurement code.
@@ -176,11 +200,17 @@ The analysis above found 2 defects, which we fixed, and the re-run results impro
 
 | Metric | Before fix | After fix |
 |---|---|---|
-| risk | 0.167 | **0.118** |
-| abstention recall | 0.625 | **0.750** |
-| abstention precision | 0.417 | **0.462** |
-| AURC | 0.175 | **0.149** |
-| selective accuracy | 0.778 | **0.824** |
+| risk | 0.167 (6/36) | **0.118** (4/34) |
+| abstention recall | 0.647 (11/17) | **0.765** (13/17) |
+| abstention precision | 0.458 (11/24) | **0.500** (13/26) |
+
+The pre-repair run itself was not retained. The three rows above are still recoverable under the corrected
+gold labels (43/17) by counting: pre-repair answered 36 with 6 harmful and refused 24 with 10 correct, and
+post-repair answered 34 with 4 harmful and refused 26 with 12 correct, so under the old labels the correct
+answers (30) and false refusals (14) are identical in both — no answerable item changed status, hence the
+item whose gold was corrected was already being refused before the repair. Adding it to the correct-refusal
+side of both columns gives 11/17 and 13/17. **AURC and selective accuracy are not recoverable this way** —
+they depend on the score ordering over all 60 items — so the pre-repair values for those are omitted.
 
 The defects fixed:
 1. **Entity-resolution failures silently fell through to a full aggregate.** `"2023년 시도별 화성인 감염병 발생 건수"`

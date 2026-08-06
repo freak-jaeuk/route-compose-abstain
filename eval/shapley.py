@@ -203,15 +203,16 @@ def main() -> None:
     print("| 트리거 | Shapley φ | leave-one-out Δ | 차이 |")
     print("|---|---|---|---|")
     for p in PLAYERS:
-        print(f"| {p} | {phi[p]:+.4f} | {-loo[p]:+.4f} | {phi[p] + loo[p]:+.4f} |")
+        print(f"| {p} | {phi[p]:+.4f} | {loo[p]:+.4f} | {phi[p] - loo[p]:+.4f} |")
     print(f"\nΣφ = {lhs:+.4f} = v(N) − v(∅) = {rhs:+.4f}  (효율성 공리 통과)")
-    print("φ < 0 = 그 트리거가 risk를 낮춘다. LOO Δ는 부호를 뒤집어 같은 방향으로 맞췄다.")
+    print("φ < 0 = 그 트리거가 risk를 낮춘다. LOO Δ = v(N)−v(N∖{i}) 로 같은 '켜는' 규약이므로")
+    print("부호를 뒤집지 않는다. (예전에 여기서 -loo 로 저장해 논문 표의 LOO 열이 반대로 인쇄됐다.)")
 
     OUT.write_text(json.dumps({
         "players": PLAYERS,
         "v": {cond_name(s): v[s] for s in v},
         "shapley": phi,
-        "leave_one_out": {p: -loo[p] for p in PLAYERS},
+        "leave_one_out": loo,
         "efficiency_check": {"sum_phi": lhs, "v_full_minus_empty": rhs},
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {OUT.relative_to(ROOT)}")

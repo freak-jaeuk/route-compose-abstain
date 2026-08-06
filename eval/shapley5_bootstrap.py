@@ -1,4 +1,4 @@
-"""Shapley φ의 항목 단위 부트스트랩. 새 실행 없이 기존 960개 결과만 사용."""
+"""Shapley φ의 항목 단위 부트스트랩. 새 실행 없이 기존 32개 coalition 결과만 사용."""
 import json, math, itertools, random
 from pathlib import Path
 
@@ -53,6 +53,14 @@ for _ in range(B):
 
 print(f"\n부트스트랩 B={B}, 항목 재표집:")
 print(f"{'trigger':24s} {'phi':>8s}  {'95% CI':>20s}   0 제외?")
+result = {}
 for p in PLAYERS:
     d = sorted(draws[p]); lo, hi = d[int(.025*B)], d[int(.975*B)]
     print(f"  {p:22s} {base[p]:+.4f}  [{lo:+.4f}, {hi:+.4f}]  {'YES' if lo*hi>0 else 'no'}")
+    result[p] = {"phi": base[p], "ci": [lo, hi], "excludes_zero": lo * hi > 0}
+
+# 아티팩트를 남긴다. 남기지 않던 시절 논문의 이 숫자가 조용히 stale 이 됐다.
+OUT = Path(__file__).resolve().parent / "shapley5_bootstrap.json"
+OUT.write_text(json.dumps({"B": B, "seed": 0, "resample": "item", "result": result},
+                          ensure_ascii=False, indent=1), encoding="utf-8")
+print(f"→ {OUT.name}")

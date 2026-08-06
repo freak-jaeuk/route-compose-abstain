@@ -1,0 +1,47 @@
+{
+ "B": 6000,
+ "seed": 0,
+ "resample": "item",
+ "result": {
+  "INSUFFICIENT_EVIDENCE": {
+   "phi": -0.09151875856395326,
+   "ci": [
+    -0.16349491233591334,
+    -0.032169600487176014
+   ],
+   "excludes_zero": true
+  },
+  "PRIVACY_RESTRICTED": {
+   "phi": -0.014178332165023034,
+   "ci": [
+    -0.033640935206546776,
+    0.002571446539396413
+   ],
+   "excludes_zero": false
+  },
+  "OUT_OF_SCHEMA": {
+   "phi": -0.030989101769461586,
+   "ci": [
+    -0.06337235356815141,
+    -0.007296995276319719
+   ],
+   "excludes_zero": true
+  },
+  "GRAPH_PATH_NOT_FOUND": {
+   "phi": 0.004334018596762222,
+   "ci": [
+    0.0,
+    0.01217505147084741
+   ],
+   "excludes_zero": false
+  },
+  "LOW_ROUTER_CONFIDENCE": {
+   "phi": -0.033334100608128255,
+   "ci": [
+    -0.07408449981596678,
+    0.004383973515094598
+   ],
+   "excludes_zero": false
+  }
+ }
+}
