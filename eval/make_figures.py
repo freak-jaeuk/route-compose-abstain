@@ -34,7 +34,7 @@ plt.rcParams.update({
 })
 
 STYLE = {
-    "proposed": {"label": "Abstention ON (proposed)", "color": "#1f4e9c", "ls": "-", "marker": "o"},
+    "proposed": {"label": "Abstention ON", "color": "#1f4e9c", "ls": "-", "marker": "o"},
     "no_abstain": {"label": "Abstention OFF", "color": "#c0392b", "ls": "--", "marker": "s"},
 }
 
@@ -121,7 +121,7 @@ def fig_risk_coverage(gold, by):
     ax.set_ylabel("Risk (error rate)")
     ax.set_xlim(0, 1.02)
     ax.set_ylim(0, None)
-    ax.legend(loc="upper left", frameon=False)
+    ax.legend(loc="upper left", frameon=False, fontsize=7, handlelength=1.6, borderaxespad=0.2)
     ax.grid(alpha=0.25, lw=0.5)
     fig.tight_layout(pad=0.3)
     out = FIGS / "risk_coverage.pdf"

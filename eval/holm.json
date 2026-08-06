@@ -9,6 +9,7 @@
    "test": "risk difference",
    "observed": -0.16568627450980392,
    "asl": 0.0008,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.01,
    "survives_holm": true
   },
@@ -16,6 +17,7 @@
    "test": "AURC difference",
    "observed": 0.032294230823642606,
    "asl": 0.0406,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.016666666666666666,
    "survives_holm": false
   },
@@ -23,6 +25,7 @@
    "test": "AUROC difference",
    "observed": -0.12038303693570451,
    "asl": 0.0004,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.008333333333333333,
    "survives_holm": true
   },
@@ -30,13 +33,15 @@
    "test": "AUGRC difference",
    "observed": 0.009444444444444491,
    "asl": 0.4004,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.025,
    "survives_holm": false
   },
   {
    "test": "AUROC, cited-source count",
    "observed": -0.13269493844049252,
-   "asl": 0.0001,
+   "asl": 0.0002,
+   "asl_is_upper_bound": true,
    "holm_threshold": 0.0071428571428571435,
    "survives_holm": true
   },
@@ -44,6 +49,7 @@
    "test": "AUROC, evidence count",
    "observed": -0.06976744186046513,
    "asl": 0.0046,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.0125,
    "survives_holm": true
   },
@@ -51,6 +57,7 @@
    "test": "AUROC, router confidence",
    "observed": 0.00547195622435015,
    "asl": 0.5904,
+   "asl_is_upper_bound": false,
    "holm_threshold": 0.05,
    "survives_holm": false
   }

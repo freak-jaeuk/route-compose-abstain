@@ -36,13 +36,19 @@ def alt_score(by, qid, which):
     return sum(_yield(c) for c in rs if c.get("tool") not in ("_run", "route"))
 
 
-def asl(draws, observed):
-    """양측 achieved significance level. 관측 부호와 무관하게 0 을 기준으로 잰다."""
+def asl(draws):
+    """양측 achieved significance level, 그리고 그것이 상한인지.
+
+    2*min(le,ge)/B 이므로 얻을 수 있는 0 아닌 값은 2/B 의 배수다. min 이 0 이면
+    참 ASL 은 이 표본으로 분해되지 않으므로 값이 아니라 상한 2/B 로 보고해야 한다.
+    (예전에 여기서 1/B 로 clip 해 논문에 p=0.0001 을 인쇄했는데, 그건 이 추정량이
+    낼 수 없는 값이다.)
+    """
     n = len(draws)
-    le = sum(1 for d in draws if d <= 0)
-    ge = sum(1 for d in draws if d >= 0)
-    p = 2.0 * min(le, ge) / n
-    return min(1.0, max(p, 1.0 / n)), observed          # 0 은 못 준다; 하한은 1/B
+    k = min(sum(1 for d in draws if d <= 0), sum(1 for d in draws if d >= 0))
+    if k == 0:
+        return 2.0 / n, True
+    return min(1.0, 2.0 * k / n), False
 
 
 def main() -> None:
@@ -91,8 +97,8 @@ def main() -> None:
     for name, fn in TESTS:
         obs = fn(qids)
         draws = [fn(s) for s in samples]
-        p, _ = asl(draws, obs)
-        rows.append({"test": name, "observed": obs, "asl": p})
+        p, bounded = asl(draws)
+        rows.append({"test": name, "observed": obs, "asl": p, "asl_is_upper_bound": bounded})
 
     # Holm-Bonferroni: p 오름차순, i 번째 임계값 alpha/(m-i), 처음 실패하는 곳에서 전부 중단.
     m = len(rows)
@@ -109,7 +115,8 @@ def main() -> None:
     print(f"{'test':28s} {'observed':>10s} {'ASL':>9s} {'Holm 임계':>10s}  통과")
     for i in order:
         r = rows[i]
-        print(f"{r['test']:28s} {r['observed']:+10.4f} {r['asl']:9.4f} {r['holm_threshold']:10.5f}  "
+        mark = "<" if r["asl_is_upper_bound"] else " "
+        print(f"{r['test']:28s} {r['observed']:+10.4f} {mark}{r['asl']:8.4f} {r['holm_threshold']:10.5f}  "
               f"{'YES' if r['survives_holm'] else 'no'}")
 
     out = E / "holm.json"
