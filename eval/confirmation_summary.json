@@ -1,0 +1,7 @@
+{
+ "n": 104,
+ "per_stratum_correct": 54,
+ "harmful_full_policy": 15,
+ "harmful_off": 54,
+ "false_refusals": 35
+}
